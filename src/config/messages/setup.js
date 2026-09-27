@@ -25,8 +25,8 @@ module.exports.configureRolesPrompt = (token) => ({
   embeds: [base(0x5865F2,
     ` **__Axex Setup — Step 1__**\n\n` +
     `Choose which role(s) your regular members have.\n\n` +
-    `• Click the button below\n` +
-    `• Paste role IDs or mentions\n\n` +
+    `> • Click the button below\n` +
+    `> • Paste role IDs or mentions\n\n` +
     `-# Separate multiple roles with commas`
   )],
   components: [new ActionRowBuilder().addComponents(
@@ -69,8 +69,8 @@ module.exports.rolesModal = () => {
 
 module.exports.invalidRoleIds = () => base(0xFF0000,
   `<:error:1551980017800712295> **__Invalid Member Roles__**\n\n` +
-  `• Use valid role IDs or @mentions\n` +
-  `• Separate multiple roles with commas\n\n` +
+  `> • Use valid role IDs or @mentions\n` +
+  `> • Separate multiple roles with commas\n\n` +
   `-# Example: \`123456789012345678, @member\``
 );
 
@@ -83,8 +83,8 @@ module.exports.saveRolesFailed = () => base(0xFF0000,
 module.exports.roleHierarchyWarn = () => base(0xFFA500,
   `<:suspicious:1550515702006554774> **__Role Hierarchy Warning__**\n\n` +
   `Axex bot role is not at the top of the role hierarchy.\n\n` +
-  `• Axex cannot manage higher roles\n` +
-  `• Verification may fail silently\n\n` +
+  `> • Axex cannot manage higher roles\n` +
+  `> • Verification may fail silently\n\n` +
   `-# Move Axex role to the top`
 );
 
@@ -127,33 +127,33 @@ module.exports.commandUnavailable = () => base(0x888888,
 module.exports.existingResources = (resources) => base(0x5865F2,
   `<:loading:1551655097770184774> **__Axex Resources Found__**\n\n` +
   `Existing Axex resources were detected.\n\n` +
-  `• Roles: ${resources.roles.length ? resources.roles.map((role) => `**${role.name}**`).join(', ') : 'None'}\n` +
-  `• Channels: ${resources.channels.length ? resources.channels.map((channel) => `<#${channel.id}>`).join(', ') : 'None'}\n\n` +
+  `> • Roles: ${resources.roles.length ? resources.roles.map((role) => `**${role.name}**`).join(', ') : 'None'}\n` +
+  `> • Channels: ${resources.channels.length ? resources.channels.map((channel) => `<#${channel.id}>`).join(', ') : 'None'}\n\n` +
   `-# Choose how to handle them below`
 );
 
 module.exports.failure = (completed, failed) => base(0xFF0000,
   `<:error:1551980017800712295> **__Axex Setup Error__**\n\n` +
   `Setup stopped before Axex could be safely enabled.\n\n` +
-  `• Completed: ${completed?.join(', ').slice(0, 1024) || 'Nothing'}\n` +
-  `• Failed: ${failed?.join(', ').slice(0, 1024) || 'Unknown error'}\n\n` +
+  `> • Completed: ${completed?.join(', ').slice(0, 1024) || 'Nothing'}\n` +
+  `> • Failed: ${failed?.join(', ').slice(0, 1024) || 'Unknown error'}\n\n` +
   `-# Check hierarchy and bot permissions`
 );
 
 module.exports.serverReady = () => base(0x00FF88,
   `<:success:1550511021146247239> **__Axex Security Active__**\n\n` +
   `This server is now protected by **Axex Security**.\n\n` +
-  `• New members must verify before access\n` +
-  `• A verification panel has been posted`
+  `> • New members must verify before access\n` +
+  `> • A verification panel has been posted`
 );
 
 module.exports.success = ({ rolesCreated, channelsCreated, channelsUpdated, hierarchyOk, settings }) => base(0x00FF88,
   `<:success:1550511021146247239> **__Setup Complete__**\n\n` +
-  `• Server: \`${settings?.guildName || 'Unknown'}\`\n` +
-  `• Roles: ${rolesCreated.join(', ') || 'None'}\n` +
-  `• Channels: ${channelsCreated.join(', ') || 'None'}\n` +
-  `• Hidden: ${channelsUpdated} • Timeout: \`${settings?.timeout ?? 60}s\` • Min Age: \`${settings?.minAge ?? 7}d\`\n` +
-  `• Raid: \`${settings?.raidThreshold ?? 10}/30s\` • Honeypot: ${settings?.honeypot === false ? 'Off' : 'On'} • VPN: ${settings?.vpnCheck === false ? 'Off' : 'On'}\n` +
+  `> • Server: \`${settings?.guildName || 'Unknown'}\`\n` +
+  `> • Roles: ${rolesCreated.join(', ') || 'None'}\n` +
+  `> • Channels: ${channelsCreated.join(', ') || 'None'}\n` +
+  `> • Hidden: ${channelsUpdated} • Timeout: \`${settings?.timeout ?? 60}s\` • Min Age: \`${settings?.minAge ?? 7}d\`\n` +
+  `> • Raid: \`${settings?.raidThreshold ?? 10}/30s\` • Honeypot: ${settings?.honeypot === false ? 'Off' : 'On'} • VPN: ${settings?.vpnCheck === false ? 'Off' : 'On'}\n` +
   (hierarchyOk
     ? `-# Setup completed successfully`
     : `-# Warning: Move Axex role to top of hierarchy`)

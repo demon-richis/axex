@@ -1,27 +1,139 @@
 const { EmbedBuilder } = require('discord.js');
 
-module.exports.liveLog = ({ action, color = 0x888888, member, accountAge, clickMs, reason, extra }) => {
+const E = {
+  memberjoined: '<:memberjoined:1553081148278575246>',
+  creation: '<:creation:1553080788139114547>',
+  bot: '<:bot:1553080718115209356>',
+  id: '<:id:1553040215096954901>',
+  user: '<:user:1550520335919481002>',
+  verify: '<:verify:1551154167727398993>',
+  verified: '<:verified:1550465125440430191>',
+  unverified: '<:unverified:1550519034435338270>',
+  suspicious: '<:suspicious:1550515702006554774>',
+  ban: '<:ban:1550513842990088233>',
+  success: '<:success:1550511021146247239>',
+  unsuccessful: '<:unsuccessful:1550510059262451733>',
+  protected: '<:protected:1550516426530488443>',
+  error: '<:error:1551980017800712295>',
+  pending: '<:pending:1551656840817938472>',
+  loading: '<:loading:1551655097770184774>',
+  owner: '<:owner:1552026264276177018>',
+};
+
+function age(createdAt) {
+  const days = Math.floor((Date.now() - createdAt) / 86_400_000);
+  return `${days} day${days !== 1 ? 's' : ''}`;
+}
+
+function memberLines(member) {
+  const user = member?.user;
+  const id = member?.id || 'N/A';
+  const tag = user?.tag;
+  return [
+    `> ${E.user} **User:** ${member ? `<@${id}>${tag ? ` \`${tag}\`` : ''}` : 'System'}`,
+    `> ${E.id} **Id:** \`${id}\``,
+  ];
+}
+
+function memberAge(member) {
+  const createdAt = member?.user?.createdAt;
+  return createdAt ? age(createdAt) : 'N/A';
+}
+
+function eventLog(emoji, title, member, fields) {
+  return new EmbedBuilder()
+    .setDescription(`${emoji} __**${title}**__\n\n${[...memberLines(member), ...fields].join('\n')}`)
+    .setTimestamp();
+}
+
+module.exports.liveLog = ({ action, member, accountAge, clickMs, reason, extra }) => {
   const userValue = member ? `<@${member.id}> \`${member.user.tag}\`` : 'System';
   const idValue = member?.id || 'N/A';
   const ageValue = Number.isInteger(accountAge) ? `${accountAge} days` : 'N/A';
   const clickValue = Number.isInteger(clickMs) ? `${clickMs}ms` : 'N/A';
   return new EmbedBuilder()
-    .setColor(color)
     .setDescription(
-      `<:loading:1551655097770184774> **__Axex Live — ${action}__**\n\n` +
-      `<:user:1550520335919481002> ${userValue}\n` +
-      `ID: \`${idValue}\` • Age: \`${ageValue}\` • Click: \`${clickValue}\`\n` +
-      `Reason: \`${reason || 'N/A'}\`` +
-      (extra ? `\nExtra: ${extra}` : '')
-    );
+      `${E.loading} __**Axex Live — ${action}**__\n\n` +
+      `> ${E.user} **User:** ${userValue}\n` +
+      `> ${E.id} **Id:** \`${idValue}\`\n` +
+      `> ${E.creation} **Age:** \`${ageValue}\`\n` +
+      `> ${E.verify} **Click:** \`${clickValue}\`\n` +
+      `> ${E.pending} **Reason:** \`${reason || 'N/A'}\`` +
+      (extra ? `\n> ${extra}` : '')
+    )
+    .setTimestamp();
 };
 
 module.exports.raidDetected = (joinCount) =>
   new EmbedBuilder()
-    .setColor(0xFF0000)
-    .setDescription(`<:protected:1550516426530488443> **__RAID DETECTED__**\n\n${joinCount} joins in 30 seconds. Hard mode activated.`);
+    .setDescription(
+      `${E.protected} __**RAID DETECTED**__\n\n` +
+      `> ⚡ **Joins:** ${joinCount} in 30 seconds\n` +
+      `> ${E.error} **Action:** Hard lockdown activated`
+    )
+    .setTimestamp();
 
 module.exports.raidCleared = () =>
   new EmbedBuilder()
-    .setColor(0x00FF88)
-    .setDescription('<:success:1550511021146247239> **__RAID MODE CLEARED__**\n\nJoin rate normalized. Verification returned to normal mode.');
+    .setDescription(
+      `${E.success} __**RAID MODE CLEARED**__\n\n` +
+      `> ${E.verified} **Status:** Join rate normalized\n` +
+      `> ${E.loading} **Mode:** Verification returned to normal`
+    )
+    .setTimestamp();
+
+module.exports.memberJoined = (member) => eventLog(E.memberjoined, 'MEMBER JOINED', member, [
+  ...(member?.user?.bot ? [`> ${E.bot} **Bot:** Yes`] : []),
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.verify} **Status:** Verification started`,
+]);
+
+module.exports.verified = (member, clickMs) => eventLog(E.verified, 'MEMBER VERIFIED', member, [
+  `> ${E.bot} **Bot:** No`,
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.verify} **Click Speed:** \`${clickMs}ms\``,
+  `> ${E.success} **Verdict:** Passed`,
+]);
+
+module.exports.wrongAnswer = (member, clickMs) => eventLog(E.unsuccessful, 'WRONG ANSWER', member, [
+  ...(member?.user?.bot ? [`> ${E.bot} **Bot:** Yes`] : []),
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.verify} **Click Speed:** \`${clickMs}ms\``,
+  `> ${E.unsuccessful} **Verdict:** Wrong answer quarantined`,
+]);
+
+module.exports.timedOut = (member) => eventLog(E.pending, 'VERIFICATION TIMED OUT', member, [
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.pending} **Verdict:** Did not verify in 60s`,
+]);
+
+module.exports.botDetected = (member, clickMs) => eventLog(E.bot, 'BOT DETECTED', member, [
+  `> ${E.bot} **Bot:** Likely`,
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.verify} **Click Speed:** \`<1500ms (${clickMs}ms)\``,
+  `> ${E.error} **Verdict:** Auto quarantined`,
+]);
+
+module.exports.suspicious = (member, clickMs) => eventLog(E.suspicious, 'SUSPICIOUS ACTIVITY', member, [
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.verify} **Click Speed:** \`borderline (${clickMs}ms)\``,
+  `> ${E.suspicious} **Verdict:** Flagged`,
+]);
+
+module.exports.newAccount = (member) => eventLog(E.error, 'NEW ACCOUNT', member, [
+  `> ${E.creation} **Age:** \`<7 days (${memberAge(member)})\``,
+  `> ${E.pending} **Verdict:** Monitoring`,
+]);
+
+module.exports.honeypot = (member) => eventLog(E.ban, 'HONEYPOT TRIGGERED', member, [
+  `> ${E.bot} **Bot:** Confirmed`,
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.error} **Trigger:** Hidden button`,
+  `> ${E.ban} **Verdict:** Banned`,
+]);
+
+module.exports.vpnDetected = (member, ip) => eventLog(E.error, 'VPN/PROXY DETECTED', member, [
+  `> ${E.creation} **Age:** \`${memberAge(member)}\``,
+  `> ${E.id} **IP:** \`${ip || 'N/A'}\``,
+  `> ${E.error} **Verdict:** VPN/Proxy detected — quarantined`,
+]);

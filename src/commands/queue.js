@@ -1,4 +1,4 @@
-const { PermissionFlagsBits } = require('discord.js');
+const { MessageFlags, PermissionFlagsBits } = require('discord.js');
 const {
   getGuildConfig,
   getGuildState,
@@ -11,15 +11,15 @@ const { sendLiveUpdate } = require('../utils/liveUpdate');
 
 async function execute(interaction) {
   if (!interaction.guild) {
-    await interaction.reply({ embeds: [embeds.approvalQueue.guildOnly()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.approvalQueue.guildOnly()], flags: MessageFlags.Ephemeral });
     return;
   }
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-    await interaction.reply({ embeds: [embeds.approvalQueue.permissionDenied()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.approvalQueue.permissionDenied()], flags: MessageFlags.Ephemeral });
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const subcommand = interaction.options.getSubcommand();
   const entries = await getQueue(interaction.guild.id);
   if (subcommand === 'list') {

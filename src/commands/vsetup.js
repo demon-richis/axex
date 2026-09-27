@@ -1,4 +1,4 @@
-const { PermissionFlagsBits } = require('discord.js');
+const { MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { v4: uuidv4 } = require('uuid');
 const { getGuildConfig, savePanelMessageId } = require('../db/client');
 const embeds = require('../config/messages');
@@ -77,11 +77,11 @@ async function runSetup(interaction, strategy, configuredMemberRoleIds, timeoutS
 async function validatePendingOwner(interaction, token) {
   const pending = pendingSetups.get(token);
   if (!pending || pending.guildId !== interaction.guildId) {
-    await interaction.reply({ embeds: [embeds.setup.confirmationExpired()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.setup.confirmationExpired()], flags: MessageFlags.Ephemeral });
     return null;
   }
   if (pending.userId !== interaction.user.id) {
-    await interaction.reply({ embeds: [embeds.setup.notSetupOwner()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.setup.notSetupOwner()], flags: MessageFlags.Ephemeral });
     return null;
   }
   return pending;
@@ -89,11 +89,11 @@ async function validatePendingOwner(interaction, token) {
 
 async function execute(interaction) {
   if (!interaction.guild) {
-    await interaction.reply({ embeds: [embeds.setup.guildOnly()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.setup.guildOnly()], flags: MessageFlags.Ephemeral });
     return;
   }
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-    await interaction.reply({ embeds: [embeds.setup.permissionDenied()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.setup.permissionDenied()], flags: MessageFlags.Ephemeral });
     return;
   }
 

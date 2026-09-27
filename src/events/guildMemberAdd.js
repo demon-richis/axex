@@ -1,7 +1,8 @@
 const {
   getGuildConfig,
   getGuildState,
-  setGuildState
+  setGuildState,
+  addToQueue
 } = require('../db/client');
 const { runPreChecks } = require('../utils/memberChecks');
 const messages = require('../config/messages');
@@ -12,7 +13,12 @@ const {
   getRecentJoinCount,
   recordJoin
 } = require('../utils/raidDetector');
-const { quarantineUser, recordAction } = require('../verification/verifySystem');
+const { analyzeUser } = require('../utils/intelligenceClient');
+const {
+  quarantineUser,
+  recordAction,
+  sendVerification
+} = require('../verification/verifySystem');
 
 const raidClearTimers = new Map();
 
@@ -56,6 +62,39 @@ async function execute(member) {
   }
   const config = check.config;
 
+  let intelligenceResult = null;
+  let riskScore = null;
+  try {
+    const intel = await analyzeUser(member);
+    if (intel) {
+      console.log(`[Axex Intelligence] ${member.user.tag} → Score: ${intel.riskScore} | Level: ${intel.riskLevel} | Action: ${intel.recommendation}`);
+    }
+    intelligenceResult = intel;
+    riskScore = typeof intelligenceResult?.riskScore === 'number' ? intelligenceResult.riskScore : null;
+  } catch {}
+
+  if (intelligenceResult?.recommendation === 'block' || intelligenceResult?.riskLevel === 'critical') {
+    await quarantineUser(member, config, 'INTELLIGENCE_BLOCK', {
+      state: await getGuildState(guild.id),
+      action: 'INTELLIGENCE BLOCKED',
+      dbAction: 'INTELLIGENCE_BLOCKED',
+      color: 0xFF0000,
+      queue: false
+    });
+    return;
+  }
+
+  if (intelligenceResult?.recommendation === 'queue') {
+    await addToQueue({
+      guildId: guild.id,
+      userId: member.id,
+      username: member.user.tag,
+      reason: 'INTELLIGENCE_RECOMMENDATION_QUEUE',
+      clickMs: null,
+      accountAge: Math.max(0, Math.floor((Date.now() - member.user.createdTimestamp) / 86_400_000))
+    }).catch(() => {});
+  }
+
   let state = await getGuildState(guild.id);
   if (eventModeExpired(state)) {
     state = await setGuildState(guild.id, { eventMode: false, eventModeEnds: null })
@@ -98,6 +137,12 @@ async function execute(member) {
     color: 0x5865F2,
     reason: 'VERIFICATION_STARTED'
   });
+
+  if (intelligenceResult?.riskLevel === 'high' || (riskScore !== null && riskScore >= 75)) {
+    try {
+      await sendVerification(member, config, state, null, riskScore);
+    } catch {}
+  }
 
   // Discord does not expose a joining member's IP. This call intentionally
   // receives null today and is ready for a future OAuth/IP collection flow.

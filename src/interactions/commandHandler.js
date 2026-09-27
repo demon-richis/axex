@@ -1,3 +1,4 @@
+const { MessageFlags } = require('discord.js');
 const vsetup = require('../commands/vsetup');
 const eventmode = require('../commands/eventmode');
 const queue = require('../commands/queue');
@@ -13,7 +14,7 @@ async function execute(interaction) {
   if (!interaction.isChatInputCommand()) return;
   const command = commands[interaction.commandName];
   if (!command) {
-    await interaction.reply({ embeds: [embeds.setup.commandUnavailable()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.setup.commandUnavailable()], flags: MessageFlags.Ephemeral });
     return;
   }
   await command.execute(interaction);
