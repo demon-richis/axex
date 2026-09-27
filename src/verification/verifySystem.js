@@ -1,3 +1,4 @@
+const { MessageFlags } = require('discord.js');
 const { v4: uuidv4 } = require('uuid');
 const {
   addToQueue,
@@ -8,6 +9,7 @@ const {
 const embeds = require('../config/messages');
 const { sendLiveUpdate } = require('../utils/liveUpdate');
 const { runPreChecks } = require('../utils/memberChecks');
+const { recordEvent } = require('../utils/intelligenceClient');
 const { createSession, getSession, clearSession } = require('./sessions');
 
 const VERIFY_CONFIG = Object.freeze({
@@ -75,7 +77,7 @@ async function sendReply(interaction, embed) {
   if (interaction.deferred || interaction.replied) {
     await interaction.editReply(payload).catch(() => {});
   } else {
-    await interaction.reply({ ...payload, ephemeral: true }).catch(() => {});
+    await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral }).catch(() => {});
   }
 }
 
@@ -142,7 +144,7 @@ async function quarantineUser(member, config, reason, options = {}) {
   });
 }
 
-async function sendVerification(member, config, guildState = {}, interaction = null) {
+async function sendVerification(member, config, guildState = {}, interaction = null, riskScore = null) {
   const timeoutMs = (config.verify_timeout || 60) * 1000;
   const verifyChannel = interaction ? null : await fetchChannel(member.guild, config.verify_channel_id);
   if (!interaction && !verifyChannel?.isTextBased()) {
@@ -169,6 +171,7 @@ async function sendVerification(member, config, guildState = {}, interaction = n
   const raidMinAge = config.raid_age || 30;
   const effectiveMinClickMs = raidMode ? raidMinClickMs : minClickMs;
   const effectiveMinAge = raidMode ? raidMinAge : minAge;
+  const strictRisk = typeof riskScore === 'number' && !Number.isNaN(riskScore) && riskScore >= 75;
 
   if (ageDays < effectiveMinAge) {
     switch (newAccAction) {
@@ -191,7 +194,7 @@ async function sendVerification(member, config, guildState = {}, interaction = n
   }
 
   const { correctLetter, correctId, honeypotId, row } = createButtons(honeypotEnabled);
-  const challenge = raidMode
+  const challenge = raidMode || strictRisk
     ? embeds.verify.raidMode(member, correctLetter, timeoutSeconds, row)
     : !eventMode && ageDays < effectiveMinAge
       ? embeds.verify.newAccount(member, correctLetter, timeoutSeconds, ageDays, row)
@@ -268,7 +271,7 @@ async function handleVerification(interaction, config) {
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const state = await getGuildState(interaction.guild.id);
   const clickMs = Date.now() - session.startTime;
   const accountAge = accountAgeDays(member);
@@ -277,8 +280,11 @@ async function handleVerification(interaction, config) {
   const suspiciousMs = config.suspicious_action ? 3000 : 3000;
   const strictClickMs = session.effectiveStrictClickMs || minClickMs;
 
+  try { await recordEvent(interaction.user.id, interaction.guild.id, 'VERIFY_ATTEMPT', { clickMs }); } catch {}
+
   if (clickMs < strictClickMs) {
     clearSession(member.id);
+    try { await recordEvent(interaction.user.id, interaction.guild.id, 'VERIFY_FAIL', { clickMs }); } catch {}
     await quarantineUser(member, config, 'BOT_DETECTED', {
       state,
       clickMs,
@@ -293,6 +299,7 @@ async function handleVerification(interaction, config) {
 
   if (session.honeypotId && interaction.customId === session.honeypotId) {
     clearSession(member.id);
+    try { await recordEvent(interaction.user.id, interaction.guild.id, 'VERIFY_FAIL', { clickMs }); } catch {}
     const banned = await member.ban({ reason: 'Axex verification honeypot triggered' }).then(() => true).catch((error) => {
       console.error(`Could not ban honeypot member ${member.id}:`, error.message);
       return false;
@@ -312,6 +319,7 @@ async function handleVerification(interaction, config) {
 
   if (interaction.customId === session.correctId) {
     clearSession(member.id);
+    try { await recordEvent(interaction.user.id, interaction.guild.id, 'VERIFY_PASS', { clickMs }); } catch {}
     await member.roles.remove(config.unverified_role_id).catch(() => {});
     await member.roles.add(config.verified_role_id).catch(() => {});
     const suspicious = clickMs < suspiciousMs;
@@ -382,6 +390,7 @@ async function handleVerification(interaction, config) {
   }
 
   clearSession(member.id);
+  try { await recordEvent(interaction.user.id, interaction.guild.id, 'VERIFY_FAIL', { clickMs }); } catch {}
   await quarantineUser(member, config, 'WRONG_ANSWER', {
     state,
     clickMs,

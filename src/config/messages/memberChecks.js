@@ -1,9 +1,9 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, MessageFlags } = require('discord.js');
 
 function message(color, title, description) {
   return {
     embeds: [new EmbedBuilder().setColor(color).setDescription(`${title}\n\n${description}`)],
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   };
 }
 
@@ -15,13 +15,13 @@ module.exports.ownerSkipped = () => ({
     .setColor(0xFFD700)
     .setDescription(
       `<:owner:1552026264276177018> **__Server Owner Detected__**\n\n` +
-      `<:owner:1552026264276177018> You are the **Server Owner**.\n` +
+      ` You are the **Server Owner**.\n` +
       `> You don't need to verify yourself.\n` +
       `> You have full access to this server.`
     )
   ],
-  ephemeral: true
+  flags: MessageFlags.Ephemeral
 });
 module.exports.joinPing = (userId) => ({
-  content: `👋 <@${userId}> — Click the **Verify** button above to access the server.`
+  content: ` <:verify:1551154167727398993> <@${userId}> — Click the **Verify** button above to access the server.`
 });

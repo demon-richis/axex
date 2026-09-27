@@ -31,13 +31,13 @@ async function execute(interaction) {
   }
 
   if (!interaction.guild) {
-    await interaction.reply({ embeds: [embeds.replies.guildOnly()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.replies.guildOnly()], flags: MessageFlags.Ephemeral });
     return;
   }
 
   const config = await getGuildConfig(interaction.guild.id);
   if (!config?.setup_done) {
-    await interaction.reply({ embeds: [embeds.replies.notConfigured()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.replies.notConfigured()], flags: MessageFlags.Ephemeral });
     return;
   }
 

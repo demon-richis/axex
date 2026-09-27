@@ -1,26 +1,26 @@
-const { PermissionFlagsBits } = require('discord.js');
+const { MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { getGuildState, logVerificationEvent, setGuildState } = require('../db/client');
 const embeds = require('../config/messages');
 const { sendLiveUpdate } = require('../utils/liveUpdate');
 
 async function execute(interaction) {
   if (!interaction.guild) {
-    await interaction.reply({ embeds: [embeds.eventMode.guildOnly()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.eventMode.guildOnly()], flags: MessageFlags.Ephemeral });
     return;
   }
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-    await interaction.reply({ embeds: [embeds.eventMode.permissionDenied()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.eventMode.permissionDenied()], flags: MessageFlags.Ephemeral });
     return;
   }
 
   const action = interaction.options.getString('action', true);
   const hours = interaction.options.getInteger('hours');
   if (action === 'on' && (!Number.isInteger(hours) || hours < 1 || hours > 24)) {
-    await interaction.reply({ embeds: [embeds.eventMode.invalidHours()], ephemeral: true });
+    await interaction.reply({ embeds: [embeds.eventMode.invalidHours()], flags: MessageFlags.Ephemeral });
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const updates = action === 'on'
     ? { eventMode: true, eventModeEnds: new Date(Date.now() + hours * 3_600_000) }
     : { eventMode: false, eventModeEnds: null };
