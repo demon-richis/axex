@@ -118,61 +118,74 @@ async function handleVerifyStart(interaction, config) {
     return;
   }
 
+  const WEBSITE_URL = process.env.WEBSITE_URL;
+  const WEBSITE_API_KEY = process.env.WEBSITE_API_KEY;
+
+  if (!WEBSITE_URL || !WEBSITE_API_KEY) {
+    console.error('[Verify] WEBSITE_URL or WEBSITE_API_KEY not set in .env');
+    await interaction.editReply({ embeds: [embeds.replies.genericError ? embeds.replies.genericError() : new EmbedBuilder().setDescription('❌ Verification service not configured.')] });
+    return;
+  }
+
   // Check for existing pending token
   let token = null;
   try {
     const pendingRes = await fetch(
-      `${process.env.WEBSITE_URL}/api/verify/pending?userId=${member.id}&guildId=${interaction.guildId}`,
+      `${WEBSITE_URL}/api/verify/pending?userId=${member.id}&guildId=${interaction.guildId}`,
       {
-        headers: { 'x-api-key': process.env.WEBSITE_API_KEY },
-        signal: AbortSignal.timeout(4000)
+        headers: { 'x-api-key': WEBSITE_API_KEY },
+        signal: AbortSignal.timeout(5000)
       }
     );
+    console.log('[Verify] Pending check status:', pendingRes.status);
     if (pendingRes.ok) {
       const data = await pendingRes.json();
+      console.log('[Verify] Pending token data:', data);
       token = data?.token || null;
     }
-  } catch {}
+  } catch (err) {
+    console.error('[Verify] Pending check failed:', err.message);
+  }
 
-  // Create new token if none pending
+  // Create new token if none found
   if (!token) {
+    const newToken = require('crypto').randomUUID();
     try {
-      const newToken = require('crypto').randomUUID();
-      const createRes = await fetch(
-        `${process.env.WEBSITE_URL}/api/guild/token`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.WEBSITE_API_KEY
-          },
-          body: JSON.stringify({
-            token: newToken,
-            userId: member.id,
-            guildId: interaction.guildId,
-            guildName: interaction.guild.name,
-            guildMemberCount: interaction.guild.memberCount,
-            expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
-          }),
-          signal: AbortSignal.timeout(4000)
-        }
-      );
+      const createRes = await fetch(`${WEBSITE_URL}/api/guild/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': WEBSITE_API_KEY
+        },
+        body: JSON.stringify({
+          token: newToken,
+          userId: member.id,
+          guildId: interaction.guildId,
+          guildName: interaction.guild.name,
+          guildMemberCount: interaction.guild.memberCount,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      console.log('[Verify] Token create status:', createRes.status);
+      const createBody = await createRes.text();
+      console.log('[Verify] Token create response:', createBody);
       if (createRes.ok) token = newToken;
-    } catch {}
+    } catch (err) {
+      console.error('[Verify] Token create failed:', err.message);
+    }
   }
 
   if (!token) {
+    console.error('[Verify] Could not obtain token for user', member.id);
     await interaction.editReply({
-      embeds: [embeds.replies.genericError
-        ? embeds.replies.genericError()
-        : new EmbedBuilder()
-            .setDescription(`${E.unsuccessful} **__Error__**\n\nCould not generate verification link. Please try again.`)
-      ]
+      embeds: [new EmbedBuilder().setDescription(`${E.unsuccessful} **__Error__**\n\nCould not generate verification link. Please try again.`)]
     });
     return;
   }
 
-  const verifyURL = `${process.env.WEBSITE_URL}/verify?token=${token}`;
+  const verifyURL = `${WEBSITE_URL}/verify?token=${token}`;
+  console.log('[Verify] Sending link to', member.id, ':', verifyURL);
 
   await interaction.editReply({
     embeds: [
