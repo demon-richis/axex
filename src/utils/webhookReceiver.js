@@ -2,6 +2,8 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
+let server;
+
 function validateKey(req, res) {
   if (req.headers['x-api-key'] !== process.env.WEBSITE_API_KEY) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -76,9 +78,16 @@ app.post('/webhook/verify-result', async (req, res) => {
   }
 });
 
-const PORT = process.env.WEBHOOK_PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`[Axex] Webhook receiver listening on port ${PORT}`);
-});
+function startWebhookReceiver() {
+  if (server) return server;
+  const PORT = Number(process.env.WEBHOOK_PORT) || 3001;
+  server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Axex] Webhook receiver listening on port ${PORT}`);
+  });
+  server.on('error', (error) => {
+    console.error('[Axex] Webhook receiver failed:', error.message);
+  });
+  return server;
+}
 
-module.exports = app;
+module.exports = { app, startWebhookReceiver };

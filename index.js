@@ -51,11 +51,12 @@ client.on('interactionCreate', (interaction) => {
 client.once('ready', async () => {
   await initDB();
   await syncAllGuilds(client);
+  const { startWebhookReceiver } = require('./src/utils/webhookReceiver');
+  startWebhookReceiver();
   console.log(`Axex online — ${client.user.tag}`);
   console.log(`Serving ${client.guilds.cache.size} server(s)`);
 });
 
 client.login(process.env.BOT_TOKEN);
-require('./src/utils/webhookReceiver');
 
 module.exports = { client };
