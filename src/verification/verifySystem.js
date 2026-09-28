@@ -151,7 +151,7 @@ async function handleVerifyStart(interaction, config) {
   if (!token) {
     const newToken = require('crypto').randomUUID();
     try {
-      const createRes = await fetch(`${WEBSITE_URL}/api/guild/token`, {
+      const createRes = await fetch(`${WEBSITE_URL}/api/bot/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
