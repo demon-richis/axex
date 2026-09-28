@@ -1,6 +1,6 @@
 const { MessageFlags } = require('discord.js');
 const { getGuildConfig } = require('../db/client');
-const { handleVerification, handleVerifyStart } = require('../verification/verifySystem');
+const { handleVerifyStart } = require('../verification/verifySystem');
 const { handleSetupButton } = require('../commands/vsetup');
 const embeds = require('../config/messages');
 
@@ -41,9 +41,6 @@ async function execute(interaction) {
     return;
   }
 
-  if (interaction.customId.startsWith('axex_') && !interaction.customId.startsWith('axex_setup_')) {
-    await handleVerification(interaction, config);
-  }
 }
 
 module.exports = { execute };

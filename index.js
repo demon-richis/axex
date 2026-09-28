@@ -56,3 +56,6 @@ client.once('ready', async () => {
 });
 
 client.login(process.env.BOT_TOKEN);
+require('./src/utils/webhookReceiver');
+
+module.exports = { client };

@@ -98,3 +98,6 @@ CREATE TABLE IF NOT EXISTS guild_state (
   event_mode_ends TIMESTAMPTZ,
   updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE guild_config
+  ADD COLUMN IF NOT EXISTS webhook_url TEXT;
