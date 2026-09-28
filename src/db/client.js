@@ -49,14 +49,15 @@ async function saveGuildConfig(config) {
         quarantined_role_id, member_role_ids, verify_timeout,
         min_account_age, raid_threshold, raid_age, raid_timing,
         honeypot_enabled, vpn_check_enabled, new_account_action,
-        suspicious_action, setup_done
+        suspicious_action, webhook_url, setup_done
       ) VALUES (
         ${config.guildId}, ${config.verifyChannelId}, ${config.quarantineChannelId},
         ${config.logChannelId}, ${config.verifiedRoleId}, ${config.unverifiedRoleId},
         ${config.quarantinedRoleId}, ${config.memberRoleIds || []}, ${config.verifyTimeout ?? 60},
         ${config.minAccountAge ?? 7}, ${config.raidThreshold ?? 10}, ${config.raidAge ?? 30},
         ${config.raidTiming ?? 2500}, ${config.honeypot ?? true}, ${config.vpnCheck ?? true},
-        ${config.newAccountAction ?? 'warn'}, ${config.suspiciousAction ?? 'flag'}, true
+        ${config.newAccountAction ?? 'warn'}, ${config.suspiciousAction ?? 'flag'},
+        ${config.webhookUrl ?? null}, true
       )
       ON CONFLICT (guild_id) DO UPDATE SET
         verify_channel_id      = EXCLUDED.verify_channel_id,
@@ -75,6 +76,7 @@ async function saveGuildConfig(config) {
         vpn_check_enabled      = EXCLUDED.vpn_check_enabled,
         new_account_action     = EXCLUDED.new_account_action,
         suspicious_action      = EXCLUDED.suspicious_action,
+        webhook_url            = EXCLUDED.webhook_url,
         setup_done             = true
     `;
     return true;
@@ -93,6 +95,18 @@ async function savePanelMessageId(guildId, messageId) {
   } catch (error) {
     console.error(`Could not save verification panel for guild ${guildId}:`, error.message);
     return false;
+  }
+}
+
+async function getWebhookUrl(guildId) {
+  try {
+    const rows = await getSql()`
+      SELECT webhook_url FROM guild_config WHERE guild_id = ${guildId}
+    `;
+    return rows[0]?.webhook_url || null;
+  } catch (error) {
+    console.error(`Could not fetch webhook URL for guild ${guildId}:`, error.message);
+    return null;
   }
 }
 
@@ -225,6 +239,7 @@ module.exports = {
   saveGuildConfig,
   saveMemberRoleIds,
   savePanelMessageId,
+  getWebhookUrl,
   logQuarantine,
   logVerificationEvent,
   addToQueue,

@@ -1,5 +1,5 @@
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
-const { saveGuildConfig } = require('../db/client');
+const { saveGuildConfig, savePanelMessageId } = require('../db/client');
 const embeds = require('../config/messages');
 
 const ROLE_DEFINITIONS = Object.freeze([
@@ -198,6 +198,21 @@ async function autoSetup(guild, options = {}) {
     const excludedIds = new Set([verifyChannel.id, quarantineChannel.id, logChannel.id]);
     stats.channelsUpdated = await hideExistingChannels(guild, [...new Set(roleIdsToRestrict)], excludedIds, completed, failed);
 
+    // Auto-create webhook in log channel
+    let webhookUrl = null;
+    try {
+      const webhook = await logChannel.createWebhook({
+        name: 'Axex Security',
+        avatar: guild.client.user.displayAvatarURL(),
+        reason: 'Axex: auto-created security webhook'
+      });
+      webhookUrl = webhook.url;
+      completed.push('Created security webhook');
+    } catch (error) {
+      failed.push('Could not create webhook (non-fatal)');
+      // non-fatal, continue
+    }
+
     const config = {
       guildId: guild.id,
       verifyChannelId: verifyChannel.id,
@@ -215,11 +230,51 @@ async function autoSetup(guild, options = {}) {
       honeypot: options.honeypot ?? true,
       vpnCheck: options.vpnCheck ?? true,
       newAccountAction: options.newAccountAction || 'warn',
-      suspiciousAction: options.suspiciousAction || 'flag'
+      suspiciousAction: options.suspiciousAction || 'flag',
+      webhookUrl: webhookUrl
     };
     if (!await saveGuildConfig(config)) {
       failed.push('Could not save Axex configuration');
       throw new SetupError(completed, failed);
+    }
+
+    // Register guild with verification website
+    try {
+      const registerRes = await fetch(
+        `${process.env.WEBSITE_URL}/api/guild/register`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.WEBSITE_API_KEY
+          },
+          body: JSON.stringify({
+            guildId: guild.id,
+            guildName: guild.name,
+            guildIcon: guild.icon || null,
+            memberCount: guild.memberCount,
+            webhookUrl: webhookUrl,
+            logChannelId: logChannel.id,
+            verifiedRoleId: verifiedRole.id,
+            quarantineRoleId: quarantinedRole.id
+          })
+        }
+      );
+      if (registerRes.ok) {
+        completed.push('Registered with Axex verification portal');
+      }
+    } catch {
+      // non-fatal, bot works without website registration
+    }
+
+    // Send static verification panel to verify channel
+    try {
+      const { permanentPanel } = require('../config/messages/verify');
+      const panelMsg = await verifyChannel.send(permanentPanel(guild.name));
+      await savePanelMessageId(guild.id, panelMsg.id);
+      completed.push('Sent verification panel');
+    } catch {
+      failed.push('Could not send verification panel');
     }
 
     await logChannel.send({ embeds: [embeds.setup.success(stats)] }).catch(() => {

@@ -6,7 +6,6 @@ const {
 } = require('../db/client');
 const { runPreChecks } = require('../utils/memberChecks');
 const messages = require('../config/messages');
-const { checkIP } = require('../utils/ipCheck');
 const {
   RAID_CLEAR,
   clearIfInactive,
@@ -16,8 +15,7 @@ const {
 const { analyzeUser } = require('../utils/intelligenceClient');
 const {
   quarantineUser,
-  recordAction,
-  sendVerification
+  recordAction
 } = require('../verification/verifySystem');
 
 const raidClearTimers = new Map();
@@ -138,25 +136,6 @@ async function execute(member) {
     reason: 'VERIFICATION_STARTED'
   });
 
-  if (intelligenceResult?.riskLevel === 'high' || (riskScore !== null && riskScore >= 75)) {
-    try {
-      await sendVerification(member, config, state, null, riskScore);
-    } catch {}
-  }
-
-  // Discord does not expose a joining member's IP. This call intentionally
-  // receives null today and is ready for a future OAuth/IP collection flow.
-  const ipResult = await checkIP(null);
-  if (ipResult.isVPN) {
-    await quarantineUser(member, config, 'VPN_PROXY_DETECTED', {
-      state,
-      action: 'VPN BLOCKED',
-      dbAction: 'VPN_BLOCKED',
-      color: 0x9B59B6,
-      ipFlagged: true
-    });
-    return;
-  }
 
 }
 
