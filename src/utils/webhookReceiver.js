@@ -5,7 +5,17 @@ app.use(express.json());
 let server;
 
 function validateKey(req, res) {
-  if (req.headers['x-api-key'] !== process.env.WEBSITE_API_KEY) {
+  const configuredKeys = [process.env.AXEX_BOT_API_KEY, process.env.WEBSITE_API_KEY]
+    .map((value) => value?.trim())
+    .filter(Boolean);
+  const providedKey = String(req.headers['x-api-key'] || '').trim();
+  const valid = configuredKeys.length > 0 && configuredKeys.includes(providedKey);
+  console.log('[WebhookReceiver] Authentication:', {
+    accepted: valid,
+    configured: configuredKeys.length > 0,
+    headerPresent: Boolean(providedKey),
+  });
+  if (!valid) {
     res.status(401).json({ error: 'Unauthorized' });
     return false;
   }
