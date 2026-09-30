@@ -52,7 +52,7 @@ client.once('ready', async () => {
   await initDB();
   await syncAllGuilds(client);
   const { startWebhookReceiver } = require('./src/utils/webhookReceiver');
-  startWebhookReceiver();
+  startWebhookReceiver(client);
   console.log(`Axex online — ${client.user.tag}`);
   console.log(`Serving ${client.guilds.cache.size} server(s)`);
 });
