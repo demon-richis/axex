@@ -3,6 +3,7 @@ const app = express();
 app.use(express.json());
 
 let server;
+let discordClient;
 
 function validateKey(req, res) {
   const configuredKeys = [process.env.AXEX_BOT_API_KEY, process.env.WEBSITE_API_KEY]
@@ -34,8 +35,11 @@ app.post('/webhook/verify-result', async (req, res) => {
   } = req.body;
 
   try {
-    const { client } = require('../index');
-    const guild = await client.guilds.fetch(guildId).catch(() => null);
+    if (!discordClient) {
+      console.error('[WebhookReceiver] Discord client is not initialized');
+      return;
+    }
+    const guild = await discordClient.guilds.fetch(guildId).catch(() => null);
     if (!guild) return;
 
     const member = await guild.members.fetch(userId).catch(() => null);
@@ -88,7 +92,9 @@ app.post('/webhook/verify-result', async (req, res) => {
   }
 });
 
-function startWebhookReceiver() {
+function startWebhookReceiver(client) {
+  if (!client) throw new Error('Discord client is required to start the webhook receiver');
+  discordClient = client;
   if (server) return server;
   const PORT = Number(process.env.WEBHOOK_PORT) || 3001;
   server = app.listen(PORT, '0.0.0.0', () => {
