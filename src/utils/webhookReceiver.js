@@ -25,7 +25,6 @@ function validateKey(req, res) {
 
 app.post('/webhook/verify-result', async (req, res) => {
   if (!validateKey(req, res)) return;
-  res.json({ received: true }); // respond immediately
 
   const {
     guildId, userId,
@@ -37,13 +36,13 @@ app.post('/webhook/verify-result', async (req, res) => {
   try {
     if (!discordClient) {
       console.error('[WebhookReceiver] Discord client is not initialized');
-      return;
+      return res.status(503).json({ received: false, error: 'Discord client is not initialized' });
     }
     const guild = await discordClient.guilds.fetch(guildId).catch(() => null);
-    if (!guild) return;
+    if (!guild) return res.status(404).json({ received: false, error: 'Guild not found' });
 
     const member = await guild.members.fetch(userId).catch(() => null);
-    if (!member) return;
+    if (!member) return res.status(404).json({ received: false, error: 'Member not found' });
 
     const { getGuildConfig, getGuildState } = require('../db/client');
     const { quarantineUser, recordAction } = require('../verification/verifySystem');
@@ -52,7 +51,7 @@ app.post('/webhook/verify-result', async (req, res) => {
 
     const config = await getGuildConfig(guildId);
     const state = await getGuildState(guildId);
-    if (!config) return;
+    if (!config) return res.status(404).json({ received: false, error: 'Guild is not configured' });
 
     if (!passed) {
       const reason = vpnDetected
@@ -90,12 +89,21 @@ app.post('/webhook/verify-result', async (req, res) => {
           embeds: [embeds.replies.verificationFailed(reason, attempts ?? 1, cooldownUntil)]
         }).catch(() => {});
       }
-      return;
+      return res.json({ received: true, passed: false, terminal });
     }
 
     // Passed — give verified role, remove unverified
-    await member.roles.remove(config.unverified_role_id).catch(() => {});
-    await member.roles.add(config.verified_role_id).catch(() => {});
+    const removed = await member.roles.remove(config.unverified_role_id).catch((error) => {
+      console.error('[WebhookReceiver] Could not remove unverified role:', error.message);
+      return null;
+    });
+    const added = await member.roles.add(config.verified_role_id).catch((error) => {
+      console.error('[WebhookReceiver] Could not add verified role:', error.message);
+      return null;
+    });
+    if (!removed || !added) {
+      return res.status(502).json({ received: false, error: 'Discord role update failed' });
+    }
 
     await recordAction(member, state, {
       action: 'VERIFIED',
@@ -110,9 +118,11 @@ app.post('/webhook/verify-result', async (req, res) => {
     try {
       await recordEvent(userId, guildId, 'VERIFY_PASS', { clickMs, accountAgeDays });
     } catch {}
+    return res.json({ received: true, passed: true });
 
   } catch (error) {
     console.error('[WebhookReceiver] Error:', error.message);
+    if (!res.headersSent) res.status(500).json({ received: false, error: 'Webhook processing failed' });
   }
 });
 
