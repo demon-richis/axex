@@ -53,6 +53,13 @@ app.post('/webhook/verify-result', async (req, res) => {
     const state = await getGuildState(guildId);
     if (!config) return res.status(404).json({ received: false, error: 'Guild is not configured' });
 
+    await sendLiveUpdate(member.guild, {
+      logType: 'callbackReceived',
+      member,
+      passed: Boolean(passed),
+      reason: flagReason || failureReason || (passed ? 'VERIFIED' : 'VERIFICATION_FAILED')
+    });
+
     if (!passed) {
       const reason = vpnDetected
         ? 'VPN_PROXY_DETECTED'
@@ -67,14 +74,19 @@ app.post('/webhook/verify-result', async (req, res) => {
           color: vpnDetected ? 0x9B59B6 : 0xFF0000,
           ipFlagged: vpnDetected,
           accountAge: accountAgeDays,
-          clickMs
+          clickMs,
+          logType: vpnDetected ? 'vpnDetected' : 'locked'
         });
         await member.send({
           embeds: [embeds.replies.verificationLocked(attempts ?? 3, reason)]
         }).catch(() => {});
       } else {
-        await member.roles.remove(config.quarantined_role_id).catch(() => {});
-        await member.roles.add(config.unverified_role_id).catch(() => {});
+        await member.roles.remove(config.quarantined_role_id).catch((error) => {
+          void sendLiveUpdate(member.guild, { logType: 'roleUpdateFailed', member, roleName: 'quarantined', error: error.message });
+        });
+        await member.roles.add(config.unverified_role_id).catch((error) => {
+          void sendLiveUpdate(member.guild, { logType: 'roleUpdateFailed', member, roleName: 'unverified', error: error.message });
+        });
         await recordAction(member, state, {
           action: 'VERIFICATION FAILED',
           dbAction: 'VERIFICATION_FAILED',
@@ -83,8 +95,14 @@ app.post('/webhook/verify-result', async (req, res) => {
           clickMs,
           accountAge: accountAgeDays,
           extra: cooldownUntil ? `Retry available: ${new Date(cooldownUntil).toLocaleString()}` : undefined,
-          ipFlagged: vpnDetected
+          ipFlagged: vpnDetected,
+          logType: failureReason === 'TIMEOUT'
+            ? 'timedOut'
+            : failureReason === 'BOT_DETECTED'
+              ? 'botDetected'
+              : 'wrongAnswer'
         });
+        await sendLiveUpdate(member.guild, { logType: 'cooldown', member, attempts: attempts ?? 1, cooldownUntil, reason });
         await member.send({
           embeds: [embeds.replies.verificationFailed(reason, attempts ?? 1, cooldownUntil)]
         }).catch(() => {});
@@ -102,6 +120,7 @@ app.post('/webhook/verify-result', async (req, res) => {
       return null;
     });
     if (!removed || !added) {
+      await sendLiveUpdate(member.guild, { logType: 'roleUpdateFailed', member, roleName: !removed ? 'unverified' : 'verified', error: 'Discord role update returned no member' });
       return res.status(502).json({ received: false, error: 'Discord role update failed' });
     }
 
@@ -111,7 +130,8 @@ app.post('/webhook/verify-result', async (req, res) => {
       color: 0x57F287,
       reason: 'WEB_VERIFICATION_PASSED',
       clickMs,
-      accountAge: accountAgeDays
+      accountAge: accountAgeDays,
+      logType: 'verified'
     });
     await member.send({ embeds: [embeds.replies.success()] }).catch(() => {});
 
