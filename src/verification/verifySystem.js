@@ -47,6 +47,7 @@ async function recordAction(member, state, data) {
   });
   await sendLiveUpdate(member.guild, {
     action: data.action,
+    logType: data.logType,
     color: data.color,
     member,
     accountAge,
@@ -60,8 +61,12 @@ async function quarantineUser(member, config, reason, options = {}) {
   const accountAge = options.accountAge ?? accountAgeDays(member);
   const clickMs = options.clickMs ?? null;
   const state = options.state || {};
-  await member.roles.remove(config.unverified_role_id).catch(() => {});
-  await member.roles.add(config.quarantined_role_id).catch(() => {});
+  await member.roles.remove(config.unverified_role_id).catch((error) => {
+    void sendLiveUpdate(member.guild, { logType: 'roleUpdateFailed', member, roleName: 'unverified', error: error.message });
+  });
+  await member.roles.add(config.quarantined_role_id).catch((error) => {
+    void sendLiveUpdate(member.guild, { logType: 'roleUpdateFailed', member, roleName: 'quarantined', error: error.message });
+  });
 
   const quarantineChannel = await fetchChannel(member.guild, config.quarantine_channel_id);
   if (quarantineChannel?.isTextBased()) {
@@ -91,7 +96,8 @@ async function quarantineUser(member, config, reason, options = {}) {
     reason,
     clickMs,
     accountAge,
-    ipFlagged: options.ipFlagged
+    ipFlagged: options.ipFlagged,
+    logType: options.logType || (reason === 'VPN_PROXY_DETECTED' ? 'vpnDetected' : 'locked')
   });
 }
 
@@ -127,6 +133,8 @@ async function handleVerifyStart(interaction, config) {
     return;
   }
 
+  await sendLiveUpdate(member.guild, { logType: 'verificationStarted', member });
+
   // Check for existing pending token
   let token = null;
   try {
@@ -142,10 +150,12 @@ async function handleVerifyStart(interaction, config) {
       const data = await pendingRes.json();
       console.log('[Verify] Pending token data:', data);
       if (data?.locked) {
+        await sendLiveUpdate(member.guild, { logType: 'locked', member, attempts: data.attempts || 3, reason: data.failureReason });
         await interaction.editReply({ embeds: [embeds.replies.attemptsExhausted(data.attempts || 3, data.failureReason)] });
         return;
       }
       if (data?.cooldownUntil && new Date(data.cooldownUntil).getTime() > Date.now()) {
+        await sendLiveUpdate(member.guild, { logType: 'cooldown', member, attempts: data.attempts || 1, cooldownUntil: data.cooldownUntil, reason: data.failureReason });
         await interaction.editReply({ embeds: [embeds.replies.retryCooldown(data.attempts || 1, data.cooldownUntil, data.failureReason)] });
         return;
       }
@@ -181,6 +191,7 @@ async function handleVerifyStart(interaction, config) {
       if (createRes.ok) token = newToken;
     } catch (err) {
       console.error('[Verify] Token create failed:', err.message);
+      await sendLiveUpdate(member.guild, { logType: 'serviceError', member, stage: 'token_create', error: err.message });
     }
   }
 
@@ -189,6 +200,7 @@ async function handleVerifyStart(interaction, config) {
     await interaction.editReply({
       embeds: [new EmbedBuilder().setDescription(`${E.unsuccessful} **__Error__**\n\nCould not generate verification link. Please try again.`)]
     });
+    await sendLiveUpdate(member.guild, { logType: 'serviceError', member, stage: 'verification_link', error: 'Could not obtain token' });
     return;
   }
 
@@ -216,6 +228,7 @@ async function handleVerifyStart(interaction, config) {
       )
     ]
   });
+  await sendLiveUpdate(member.guild, { logType: 'linkCreated', member, expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
 }
 
 module.exports = {
