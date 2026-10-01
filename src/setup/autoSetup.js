@@ -198,20 +198,8 @@ async function autoSetup(guild, options = {}) {
     const excludedIds = new Set([verifyChannel.id, quarantineChannel.id, logChannel.id]);
     stats.channelsUpdated = await hideExistingChannels(guild, [...new Set(roleIdsToRestrict)], excludedIds, completed, failed);
 
-    // Auto-create webhook in log channel
-    let webhookUrl = null;
-    try {
-      const webhook = await logChannel.createWebhook({
-        name: 'Axex Security',
-        avatar: guild.client.user.displayAvatarURL(),
-        reason: 'Axex: auto-created security webhook'
-      });
-      webhookUrl = webhook.url;
-      completed.push('Created security webhook');
-    } catch (error) {
-      failed.push('Could not create webhook (non-fatal)');
-      // non-fatal, continue
-    }
+    // Logging is sent directly by the bot to axex-logs; no Discord webhook is created.
+    const webhookUrl = null;
 
     const config = {
       guildId: guild.id,
@@ -253,7 +241,7 @@ async function autoSetup(guild, options = {}) {
             guildName: guild.name,
             guildIcon: guild.icon || null,
             memberCount: guild.memberCount,
-            webhookUrl: webhookUrl,
+            webhookUrl: null,
             logChannelId: logChannel.id,
             verifiedRoleId: verifiedRole.id,
             quarantineRoleId: quarantinedRole.id

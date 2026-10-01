@@ -1,19 +1,26 @@
-// These custom emojis require Axex to share the source emoji server and to have
-// the Use External Emojis permission. Use the Unicode values below if that is
-// not possible on your deployment.
+// Axex custom emojis. Keep these IDs centralized so embeds stay consistent.
 module.exports = {
+  memberjoined: '<:memberjoined:1553081148278575246>',
+  creation: '<:creation:1553080788139114547>',
+  bot: '<:bot:1553080718115209356>',
+  id: '<:id:1553040215096954901>',
+  owner: '<:owner:1552026264276177018>',
+  error: '<:error:1551980017802295>',
+  pending: '<:pending:1551656840817938472>',
+  loading: '<:loading:1551655097701847747>',
   verify: '<:verify:1551154167727398993>',
   user: '<:user:1550520335919481002>',
   unverified: '<:unverified:1550519034435338270>',
   protected: '<:protected:1550516426530488443>',
   suspicious: '<:suspicious:1550515702006554774>',
-  pending: '<:pending:1551656840817938472>',
   ban: '<:ban:1550513842990088233>',
-  success: '<:success:1550511021146247239>',
+  success: '<:success:155051102114627239>',
   unsuccessful: '<:unsuccessful:1550510059262451733>',
   verified: '<:verified:1550465125440430191>',
   fallback: {
-    verify: '✅', user: '👤', unverified: '⚠️', protected: '🛡️',
-    suspicious: '⚠️', pending: '⏳', ban: '🚫', success: '✅', unsuccessful: '❌', verified: '✅'
-  }
+    memberjoined: '👋', creation: '🗓️', bot: '🤖', id: '🪪', owner: '👑',
+    error: '⚠️', pending: '⏳', loading: '🔄', verify: '🔐', user: '👤',
+    unverified: '⚠️', protected: '🛡️', suspicious: '🔎', ban: '🚫',
+    success: '✅', unsuccessful: '❌', verified: '✅',
+  },
 };

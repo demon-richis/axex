@@ -31,7 +31,7 @@ app.post('/webhook/verify-result', async (req, res) => {
     guildId, userId,
     passed, vpnDetected,
     accountAgeDays, clickMs,
-    flagReason
+    flagReason, failureReason, attempts, cooldownUntil, locked
   } = req.body;
 
   try {
@@ -45,9 +45,10 @@ app.post('/webhook/verify-result', async (req, res) => {
     const member = await guild.members.fetch(userId).catch(() => null);
     if (!member) return;
 
-    const { getGuildConfig, getGuildState, getWebhookUrl } = require('../db/client');
+    const { getGuildConfig, getGuildState } = require('../db/client');
     const { quarantineUser, recordAction } = require('../verification/verifySystem');
     const { recordEvent } = require('./intelligenceClient');
+    const embeds = require('../config/messages');
 
     const config = await getGuildConfig(guildId);
     const state = await getGuildState(guildId);
@@ -56,17 +57,39 @@ app.post('/webhook/verify-result', async (req, res) => {
     if (!passed) {
       const reason = vpnDetected
         ? 'VPN_PROXY_DETECTED'
-        : (flagReason || 'VERIFICATION_FAILED');
+        : (flagReason || failureReason || 'VERIFICATION_FAILED');
+      const terminal = Boolean(vpnDetected || locked || (attempts ?? 0) >= 3);
 
-      await quarantineUser(member, config, reason, {
-        state,
-        action: vpnDetected ? 'VPN BLOCKED' : 'VERIFICATION FAILED',
-        dbAction: vpnDetected ? 'VPN_BLOCKED' : 'VERIFICATION_FAILED',
-        color: vpnDetected ? 0x9B59B6 : 0xFF0000,
-        ipFlagged: vpnDetected,
-        accountAge: accountAgeDays,
-        clickMs
-      });
+      if (terminal) {
+        await quarantineUser(member, config, reason, {
+          state,
+          action: vpnDetected ? 'VPN BLOCKED' : 'VERIFICATION LOCKED',
+          dbAction: vpnDetected ? 'VPN_BLOCKED' : 'VERIFICATION_LOCKED',
+          color: vpnDetected ? 0x9B59B6 : 0xFF0000,
+          ipFlagged: vpnDetected,
+          accountAge: accountAgeDays,
+          clickMs
+        });
+        await member.send({
+          embeds: [embeds.replies.verificationLocked(attempts ?? 3, reason)]
+        }).catch(() => {});
+      } else {
+        await member.roles.remove(config.quarantined_role_id).catch(() => {});
+        await member.roles.add(config.unverified_role_id).catch(() => {});
+        await recordAction(member, state, {
+          action: 'VERIFICATION FAILED',
+          dbAction: 'VERIFICATION_FAILED',
+          color: 0xFF6600,
+          reason,
+          clickMs,
+          accountAge: accountAgeDays,
+          extra: cooldownUntil ? `Retry available: ${new Date(cooldownUntil).toLocaleString()}` : undefined,
+          ipFlagged: vpnDetected
+        });
+        await member.send({
+          embeds: [embeds.replies.verificationFailed(reason, attempts ?? 1, cooldownUntil)]
+        }).catch(() => {});
+      }
       return;
     }
 
@@ -82,6 +105,7 @@ app.post('/webhook/verify-result', async (req, res) => {
       clickMs,
       accountAge: accountAgeDays
     });
+    await member.send({ embeds: [embeds.replies.success()] }).catch(() => {});
 
     try {
       await recordEvent(userId, guildId, 'VERIFY_PASS', { clickMs, accountAgeDays });
