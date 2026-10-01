@@ -141,6 +141,14 @@ async function handleVerifyStart(interaction, config) {
     if (pendingRes.ok) {
       const data = await pendingRes.json();
       console.log('[Verify] Pending token data:', data);
+      if (data?.locked) {
+        await interaction.editReply({ embeds: [embeds.replies.attemptsExhausted(data.attempts || 3, data.failureReason)] });
+        return;
+      }
+      if (data?.cooldownUntil && new Date(data.cooldownUntil).getTime() > Date.now()) {
+        await interaction.editReply({ embeds: [embeds.replies.retryCooldown(data.attempts || 1, data.cooldownUntil, data.failureReason)] });
+        return;
+      }
       token = data?.token || null;
     }
   } catch (err) {
