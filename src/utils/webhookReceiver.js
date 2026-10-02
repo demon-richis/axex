@@ -107,6 +107,10 @@ app.post('/webhook/verify-result', async (req, res) => {
         await member.send({
           embeds: [embeds.replies.verificationFailed(reason, attempts ?? 1, cooldownUntil)]
         }).catch(() => {});
+        await recordEvent(userId, guildId, 'VERIFY_FAIL', {
+          clickMs,
+          metadata: { reason, vpnDetected: Boolean(vpnDetected), attempts: attempts ?? 1, terminal }
+        });
       }
       return res.json({ received: true, passed: false, terminal });
     }
@@ -137,7 +141,7 @@ app.post('/webhook/verify-result', async (req, res) => {
     await member.send({ embeds: [embeds.replies.success()] }).catch(() => {});
 
     try {
-      await recordEvent(userId, guildId, 'VERIFY_PASS', { clickMs, accountAgeDays });
+      await recordEvent(userId, guildId, 'VERIFY_SUCCESS', { clickMs, metadata: { accountAgeDays } });
     } catch {}
     return res.json({ received: true, passed: true });
 
