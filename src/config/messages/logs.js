@@ -50,6 +50,10 @@ function reasonText(reason) {
   return String(reason || 'N/A').replaceAll('_', ' ');
 }
 
+function codeText(value) {
+  return String(value ?? 'N/A').replaceAll('`', "'").replaceAll('\n', ' ').slice(0, 300);
+}
+
 module.exports.liveLog = ({ action, member, accountAge, clickMs, reason, extra }) => {
   const userValue = member ? `<@${member.id}> \`${member.user.tag}\`` : 'System';
   const idValue = member?.id || 'N/A';
@@ -117,3 +121,16 @@ module.exports.suspicious = (member, clickMs) => eventLog(E.suspicious, 'SUSPICI
 module.exports.newAccount = (member) => eventLog(E.error, 'NEW ACCOUNT', member, [`> ${E.creation} **Age:** \`<7 days (${memberAge(member)})\``, `> ${E.pending} **Verdict:** Monitoring`]);
 module.exports.honeypot = (member) => eventLog(E.ban, 'HONEYPOT TRIGGERED', member, [`> ${E.bot} **Bot:** Confirmed`, `> ${E.creation} **Age:** \`${memberAge(member)}\``, `> ${E.error} **Trigger:** Hidden button`, `> ${E.ban} **Verdict:** Banned`]);
 module.exports.vpnDetected = (member, ip) => eventLog(E.error, 'VPN/PROXY DETECTED', member, [`> ${E.creation} **Age:** \`${memberAge(member)}\``, `> ${E.id} **IP:** \`${ip || 'N/A'}\``, `> ${E.error} **Verdict:** VPN/Proxy detected — quarantined`]);
+module.exports.intelligenceAnalysis = (member, result, source) => eventLog(
+  result?.recommendation === 'block' || result?.riskLevel === 'critical' ? E.suspicious : E.loading,
+  'INTELLIGENCE ANALYSIS',
+  member,
+  [
+    `> ${E.id} **Risk score:** \`${Number.isFinite(result?.riskScore) ? `${result.riskScore}/100` : 'N/A'}\``,
+    `> ${E.suspicious} **Risk level:** \`${codeText(result?.riskLevel || 'unknown').toUpperCase()}\``,
+    `> ${E.protected} **Recommendation:** \`${codeText(result?.recommendation || 'unknown').toUpperCase()}\``,
+    `> ${E.pending} **Confidence:** \`${codeText(result?.confidence || 'unknown').toUpperCase()}\``,
+    `> ${E.verify} **Source:** \`${codeText(source || 'verification portal')}\``,
+    `> ${E.error} **Reasons:** \`${codeText((Array.isArray(result?.reasons) && result.reasons.length ? result.reasons : ['No elevated signals']).slice(0, 5).join(', '))}\``,
+  ],
+);

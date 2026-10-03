@@ -16,6 +16,7 @@ function verificationEmbed(data) {
     case 'timedOut': return logs.timedOut(data.member);
     case 'botDetected': return logs.botDetected(data.member, data.clickMs);
     case 'vpnDetected': return logs.vpnDetected(data.member, data.ip);
+    case 'intelligenceAnalysis': return logs.intelligenceAnalysis(data.member, data.result, data.source);
     default: return logs.liveLog(data);
   }
 }
