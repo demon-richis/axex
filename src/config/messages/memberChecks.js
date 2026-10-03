@@ -7,14 +7,14 @@ function message(color, title, description) {
   };
 }
 
-module.exports.alreadyVerified = () => message(0x00FF88, '<:verified:1550465125440430191> **__Already Verified__**', 'You are already verified and have full access to this server!');
-module.exports.alreadyQuarantined = () => message(0xFF0000, '<:protected:1550516426530488443> **__Account Quarantined__**', 'Your account is in quarantine. Please contact a server admin to appeal.');
-module.exports.sessionActive = () => message(0xFFA500, '<:pending:1551656840817938472> **__Verification In Progress__**', 'You already have an active verification session. Please complete it.');
+module.exports.alreadyVerified = () => message(0x00FF88, '<:success:1555947271787682315> **__Already Verified__**', 'You are already verified and have full access to this server!');
+module.exports.alreadyQuarantined = () => message(0xFF0000, '<:protected:1555934648490655815> **__Account Quarantined__**', 'Your account is in quarantine. Please contact a server admin to appeal.');
+module.exports.sessionActive = () => message(0xFFA500, '<:cooldown:1555947260112670882> **__Verification In Progress__**', 'You already have an active verification session. Please complete it.');
 module.exports.ownerSkipped = () => ({
   embeds: [new EmbedBuilder()
     .setColor(0xFFD700)
     .setDescription(
-      `<:owner:1552026264276177018> **__Server Owner Detected__**\n\n` +
+      `<:owner:1555947219914330182> **__Server Owner Detected__**\n\n` +
       ` You are the **Server Owner**.\n` +
       `> You don't need to verify yourself.\n` +
       `> You have full access to this server.`
@@ -23,5 +23,5 @@ module.exports.ownerSkipped = () => ({
   flags: MessageFlags.Ephemeral
 });
 module.exports.joinPing = (userId) => ({
-  content: ` <:verify:1551154167727398993> <@${userId}> — Click the **Verify** button above to access the server.`
+  content: ` <:captcha:1555934211922198588> <@${userId}> — Click the **Verify** button above to access the server.`
 });

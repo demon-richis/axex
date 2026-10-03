@@ -1,32 +1,33 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const E = require('../../verification/emojis');
 
-const E = {
-  verify: '<:verify:1551154167727398993>',
-  user: '<:user:1550520335919481002>',
-  protected: '<:protected:1550516426530488443>',
-  pending: '<:pending:1551656840817938472>',
-  success: '<:success:155051102114627239>',
-};
+const ID_VERIFY = 'axex_verify_start';
+const ID_HELP = 'axex_help';
 
-module.exports.permanentPanel = (guildName) => ({
-  embeds: [new EmbedBuilder()
-    .setColor(0x5865F2)
+function buildPanel(guildName) {
+  const embed = new EmbedBuilder()
+    .setColor(0x676669)
     .setDescription(
-      `${E.verify} **Axex verification required**\n\n` +
-      `Welcome to **${guildName}**. Complete the secure verification below to unlock the server.\n\n` +
-      `> ${E.user} **What happens:** Discord identity check + security challenge\n` +
-      `> ${E.protected} **Protection:** VPN/proxy and suspicious activity checks\n` +
-      `> ${E.pending} **Time:** Usually less than two minutes\n\n` +
-      `-# You have up to 3 attempts. Follow the instructions carefully.`
-    )
-    .setTimestamp()],
-  components: [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('axex_verify_start')
-        .setLabel('Start verification')
-        .setEmoji('1551154167727398993')
-        .setStyle(ButtonStyle.Primary),
-    ),
-  ],
-});
+      `### ${E.captcha} Verification Required!\n` +
+        `${E.reminder} To access **${guildName}**, you need to pass verification first.\n` +
+        `${E.invisible} ${E.arrow} Press **Verify** below to start.`,
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(ID_VERIFY)
+      .setLabel('Verify')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(ID_HELP)
+      .setLabel('Help')
+      .setStyle(ButtonStyle.Secondary),
+  );
+
+  return { embeds: [embed], components: [row] };
+}
+
+module.exports = {
+  buildPanel,
+  permanentPanel: buildPanel,
+};
