@@ -12,6 +12,14 @@ async function execute(interaction) {
     return;
   }
 
+  if (interaction.customId === 'axex_help') {
+    await interaction.reply({
+      content: '<:axex_help:1555947266794324109> Follow the verification link, sign in with Discord, complete the short challenge, and return here. If you are on cooldown, wait until the displayed retry time before trying again.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
   if (interaction.customId === 'axex_verify_start') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

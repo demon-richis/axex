@@ -16,7 +16,7 @@ function base(color, description) {
 }
 
 module.exports.alreadySetup = () => base(0xFFA500,
-  `<:suspicious:1550515702006554774> **__Already Configured__**\n\n` +
+  `<:scan:1555934607369834526> **__Already Configured__**\n\n` +
   `Axex is already set up on this server.\n\n` +
   `-# Reconfigure to reset settings`
 );
@@ -68,20 +68,20 @@ module.exports.rolesModal = () => {
 };
 
 module.exports.invalidRoleIds = () => base(0xFF0000,
-  `<:error:1551980017800712295> **__Invalid Member Roles__**\n\n` +
+  `<:warning:1555947291259568238> **__Invalid Member Roles__**\n\n` +
   `> • Use valid role IDs or @mentions\n` +
   `> • Separate multiple roles with commas\n\n` +
   `-# Example: \`123456789012345678, @member\``
 );
 
 module.exports.saveRolesFailed = () => base(0xFF0000,
-  `<:unsuccessful:1550510059262451733> **__Roles Not Saved__**\n\n` +
+  `<:failed:1555947263304671384> **__Roles Not Saved__**\n\n` +
   `Could not save roles to the database.\n\n` +
   `-# Check bot permissions and try again`
 );
 
 module.exports.roleHierarchyWarn = () => base(0xFFA500,
-  `<:suspicious:1550515702006554774> **__Role Hierarchy Warning__**\n\n` +
+  `<:scan:1555934607369834526> **__Role Hierarchy Warning__**\n\n` +
   `Axex bot role is not at the top of the role hierarchy.\n\n` +
   `> • Axex cannot manage higher roles\n` +
   `> • Verification may fail silently\n\n` +
@@ -89,37 +89,37 @@ module.exports.roleHierarchyWarn = () => base(0xFFA500,
 );
 
 module.exports.cancelled = () => base(0x888888,
-  `<:unsuccessful:1550510059262451733> **__Setup Cancelled__**\n\n` +
+  `<:failed:1555947263304671384> **__Setup Cancelled__**\n\n` +
   `No Axex roles or channels were changed.\n\n` +
   `-# Run \`/vsetup\` to restart`
 );
 
 module.exports.confirmationExpired = () => base(0x888888,
-  `<:unsuccessful:1550510059262451733> **__Confirmation Expired__**\n\n` +
+  `<:failed:1555947263304671384> **__Confirmation Expired__**\n\n` +
   `This setup session has timed out.\n\n` +
   `-# Run \`/vsetup\` again`
 );
 
 module.exports.notSetupOwner = () => base(0xFF0000,
-  `<:error:1551980017800712295> **__Not Your Setup__**\n\n` +
+  `<:warning:1555947291259568238> **__Not Your Setup__**\n\n` +
   `Only the administrator who started setup can use these buttons.\n\n` +
   `-# Ask them to continue`
 );
 
 module.exports.permissionDenied = () => base(0xFF0000,
-  `<:protected:1550516426530488443> **__Permission Required__**\n\n` +
+  `<:protected:1555934648490655815> **__Permission Required__**\n\n` +
   `You need **Manage Server** to run \`/vsetup\`.\n\n` +
   `-# Ask an admin for access`
 );
 
 module.exports.guildOnly = () => base(0xFF0000,
-  `<:error:1551980017800712295> **__Server Only__**\n\n` +
+  `<:warning:1555947291259568238> **__Server Only__**\n\n` +
   `Axex setup can only run inside a server.\n\n` +
   `-# Use it in a guild channel`
 );
 
 module.exports.commandUnavailable = () => base(0x888888,
-  `<:error:1551980017800712295> **__Command Unavailable__**\n\n` +
+  `<:warning:1555947291259568238> **__Command Unavailable__**\n\n` +
   `That Axex command is not available.\n\n` +
   `-# Check \`/help\` for commands`
 );
@@ -133,7 +133,7 @@ module.exports.existingResources = (resources) => base(0x5865F2,
 );
 
 module.exports.failure = (completed, failed) => base(0xFF0000,
-  `<:error:1551980017800712295> **__Axex Setup Error__**\n\n` +
+  `<:warning:1555947291259568238> **__Axex Setup Error__**\n\n` +
   `Setup stopped before Axex could be safely enabled.\n\n` +
   `> • Completed: ${completed?.join(', ').slice(0, 1024) || 'Nothing'}\n` +
   `> • Failed: ${failed?.join(', ').slice(0, 1024) || 'Unknown error'}\n\n` +
@@ -141,14 +141,14 @@ module.exports.failure = (completed, failed) => base(0xFF0000,
 );
 
 module.exports.serverReady = () => base(0x00FF88,
-  `<:success:1550511021146247239> **__Axex Security Active__**\n\n` +
+  `<:success:1555947271787682315> **__Axex Security Active__**\n\n` +
   `This server is now protected by **Axex Security**.\n\n` +
   `> • New members must verify before access\n` +
   `> • A verification panel has been posted`
 );
 
 module.exports.success = ({ rolesCreated, channelsCreated, channelsUpdated, hierarchyOk, settings }) => base(0x00FF88,
-  `<:success:1550511021146247239> **__Setup Complete__**\n\n` +
+  `<:success:1555947271787682315> **__Setup Complete__**\n\n` +
   `> • Server: \`${settings?.guildName || 'Unknown'}\`\n` +
   `> • Roles: ${rolesCreated.join(', ') || 'None'}\n` +
   `> • Channels: ${channelsCreated.join(', ') || 'None'}\n` +

@@ -1,14 +1,14 @@
 const { EmbedBuilder } = require('discord.js');
 
 const E = {
-  success: '<:success:155051102114627239>',
-  verified: '<:verified:1550465125440430191>',
-  unsuccessful: '<:unsuccessful:1550510059262451733>',
-  protected: '<:protected:1550516426530488443>',
-  pending: '<:pending:1551656840817938472>',
-  error: '<:error:1551980017802295>',
-  verify: '<:verify:1551154167727398993>',
-  ban: '<:ban:1550513842990088233>',
+  success: '<:success:1555947271787682315>',
+  verified: '<:success:1555947271787682315>',
+  unsuccessful: '<:failed:1555947263304671384>',
+  protected: '<:protected:1555934648490655815>',
+  pending: '<:cooldown:1555947260112670882>',
+  error: '<:warning:1555947291259568238>',
+  verify: '<:captcha:1555934211922198588>',
+  ban: '<:quarantine:1555947272091729950>',
 };
 
 function reply(color, title, description, fields = []) {
