@@ -24,6 +24,44 @@ function validateKey(req, res) {
   return true;
 }
 
+app.post('/webhook/intelligence-event', async (req, res) => {
+  if (!validateKey(req, res)) return;
+
+  const { guildId, userId, source, result } = req.body || {};
+  if (!guildId || !userId || !result || typeof result !== 'object') {
+    return res.status(400).json({ received: false, error: 'Invalid intelligence event' });
+  }
+
+  try {
+    if (!discordClient) {
+      return res.status(503).json({ received: false, error: 'Discord client is not initialized' });
+    }
+    const guild = await discordClient.guilds.fetch(String(guildId)).catch(() => null);
+    if (!guild) return res.status(404).json({ received: false, error: 'Guild not found' });
+    const member = await guild.members.fetch(String(userId)).catch(() => null);
+    if (!member) return res.status(404).json({ received: false, error: 'Member not found' });
+
+    await sendLiveUpdate(guild, {
+      logType: 'intelligenceAnalysis',
+      member,
+      source: String(source || 'verification portal').slice(0, 80),
+      result: {
+        riskScore: Number.isFinite(Number(result.riskScore)) ? Number(result.riskScore) : null,
+        riskLevel: String(result.riskLevel || 'unknown').slice(0, 40),
+        recommendation: String(result.recommendation || 'unknown').slice(0, 40),
+        confidence: String(result.confidence || 'unknown').slice(0, 40),
+        reasons: Array.isArray(result.reasons)
+          ? result.reasons.map((reason) => String(reason).slice(0, 100)).slice(0, 5)
+          : [],
+      },
+    });
+    return res.json({ received: true });
+  } catch (error) {
+    console.error('[WebhookReceiver] Intelligence event error:', error.message);
+    return res.status(500).json({ received: false, error: 'Intelligence event processing failed' });
+  }
+});
+
 app.post('/webhook/verify-result', async (req, res) => {
   if (!validateKey(req, res)) return;
 
