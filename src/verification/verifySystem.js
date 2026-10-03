@@ -8,6 +8,7 @@ const {
 const embeds = require('../config/messages');
 const { sendLiveUpdate } = require('../utils/liveUpdate');
 const { runPreChecks } = require('../utils/memberChecks');
+const websiteUrl = require('../utils/websiteUrl');
 
 function accountAgeDays(member) {
   return Math.max(0, Math.floor((Date.now() - member.user.createdTimestamp) / 86_400_000));
@@ -139,7 +140,7 @@ async function handleVerifyStart(interaction, config) {
   let token = null;
   try {
     const pendingRes = await fetch(
-      `${WEBSITE_URL}/api/verify/pending?userId=${member.id}&guildId=${interaction.guildId}`,
+      websiteUrl(`/api/verify/pending?userId=${member.id}&guildId=${interaction.guildId}`),
       {
         headers: { 'x-api-key': WEBSITE_API_KEY },
         signal: AbortSignal.timeout(5000)
@@ -160,6 +161,8 @@ async function handleVerifyStart(interaction, config) {
         return;
       }
       token = data?.token || null;
+    } else {
+      console.error(`[Verify] Pending check returned ${pendingRes.status}`);
     }
   } catch (err) {
     console.error('[Verify] Pending check failed:', err.message);
@@ -169,7 +172,7 @@ async function handleVerifyStart(interaction, config) {
   if (!token) {
     const newToken = require('crypto').randomUUID();
     try {
-      const createRes = await fetch(`${WEBSITE_URL}/api/bot/token`, {
+      const createRes = await fetch(websiteUrl('/api/bot/token'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,9 +189,12 @@ async function handleVerifyStart(interaction, config) {
         signal: AbortSignal.timeout(5000)
       });
       console.log('[Verify] Token create status:', createRes.status);
-      const createBody = await createRes.text();
-      console.log('[Verify] Token create response:', createBody);
-      if (createRes.ok) token = newToken;
+      if (createRes.ok) {
+        token = newToken;
+      } else {
+        const responseText = await createRes.text().catch(() => '');
+        console.error(`[Verify] Token create response: ${responseText.slice(0, 200)}`);
+      }
     } catch (err) {
       console.error('[Verify] Token create failed:', err.message);
       await sendLiveUpdate(member.guild, { logType: 'serviceError', member, stage: 'token_create', error: err.message });
@@ -204,7 +210,7 @@ async function handleVerifyStart(interaction, config) {
     return;
   }
 
-  const verifyURL = `${WEBSITE_URL}/verify?token=${token}`;
+  const verifyURL = websiteUrl(`/verify?token=${encodeURIComponent(token)}`);
   console.log('[Verify] Sending link to', member.id, ':', verifyURL);
 
   await interaction.editReply({

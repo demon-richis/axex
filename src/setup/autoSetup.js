@@ -1,6 +1,7 @@
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const { saveGuildConfig, savePanelMessageId } = require('../db/client');
 const embeds = require('../config/messages');
+const websiteUrl = require('../utils/websiteUrl');
 
 const ROLE_DEFINITIONS = Object.freeze([
   { name: 'Verified', color: 0x00FF88, hoist: true },
@@ -229,7 +230,7 @@ async function autoSetup(guild, options = {}) {
     // Register guild with verification website
     try {
       const registerRes = await fetch(
-        `${process.env.WEBSITE_URL}/api/guild/register`,
+        websiteUrl('/api/guild/register'),
         {
           method: 'POST',
           headers: {
