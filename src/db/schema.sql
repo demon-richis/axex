@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS quarantine_log (
 
 CREATE TABLE IF NOT EXISTS verification_events (
   id           SERIAL PRIMARY KEY,
+  event_id     TEXT UNIQUE,
+  reference_id TEXT,
   guild_id     TEXT NOT NULL,
   user_id      TEXT NOT NULL,
   username     TEXT NOT NULL,
@@ -77,6 +79,10 @@ CREATE TABLE IF NOT EXISTS verification_events (
   raid_mode    BOOLEAN DEFAULT FALSE,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE verification_events ADD COLUMN IF NOT EXISTS event_id TEXT;
+ALTER TABLE verification_events ADD COLUMN IF NOT EXISTS reference_id TEXT;
+CREATE INDEX IF NOT EXISTS verification_events_reference_idx ON verification_events (guild_id, reference_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS quarantine_queue (
   id           SERIAL PRIMARY KEY,

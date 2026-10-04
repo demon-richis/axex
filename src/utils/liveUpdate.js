@@ -28,8 +28,16 @@ async function sendLiveUpdate(guild, data) {
     const logChannel = guild.channels.cache.get(config.log_channel_id)
       || await guild.channels.fetch(config.log_channel_id).catch(() => null);
     if (!logChannel?.isTextBased()) return false;
+    const embed = verificationEmbed(data);
+    if (data.referenceId || data.eventId) {
+      embed.setFooter({
+        text: [data.referenceId && `Case ${data.referenceId}`, data.eventId && `Event ${data.eventId}`]
+          .filter(Boolean)
+          .join(' • ')
+      });
+    }
     await logChannel.send({
-      embeds: [verificationEmbed(data)],
+      embeds: [embed],
       allowedMentions: { parse: [] }
     });
     return true;

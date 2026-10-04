@@ -2,12 +2,14 @@ const { MessageFlags } = require('discord.js');
 const vsetup = require('../commands/vsetup');
 const eventmode = require('../commands/eventmode');
 const queue = require('../commands/queue');
+const verificationLog = require('../commands/verificationLog');
 const embeds = require('../config/messages');
 
 const commands = {
   vsetup,
   eventmode,
-  queue
+  queue,
+  'verification-log': verificationLog
 };
 
 async function execute(interaction) {
