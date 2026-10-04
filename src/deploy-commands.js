@@ -140,6 +140,22 @@ const commands = [
         ]
       }
     ]
+  },
+  {
+    name: 'verification-log',
+    description: 'View the complete verification timeline for a case ID',
+    default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
+    dm_permission: false,
+    options: [
+      {
+        name: 'reference',
+        description: 'Case ID, for example AX-1A2B3C4D',
+        type: 3,
+        required: true,
+        min_length: 11,
+        max_length: 11
+      }
+    ]
   }
 ];
 

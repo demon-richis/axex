@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { neon } = require('@neondatabase/serverless');
 
 let sql = null;
@@ -139,19 +140,36 @@ async function logQuarantine(guildId, userId, reason, clickMs, accountAge) {
 }
 
 async function logVerificationEvent(data) {
+  const eventId = data.eventId || `EV-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
   try {
     await getSql()`
       INSERT INTO verification_events
-        (guild_id, user_id, username, action, reason, click_ms, account_age, ip_flagged, raid_mode)
+        (event_id, reference_id, guild_id, user_id, username, action, reason, click_ms, account_age, ip_flagged, raid_mode)
       VALUES
-        (${data.guildId}, ${data.userId}, ${data.username}, ${data.action},
+        (${eventId}, ${data.referenceId ?? null}, ${data.guildId}, ${data.userId}, ${data.username}, ${data.action},
          ${data.reason ?? null}, ${data.clickMs ?? null}, ${data.accountAge ?? null},
          ${Boolean(data.ipFlagged)}, ${Boolean(data.raidMode)})
     `;
-    return true;
+    return { eventId };
   } catch (error) {
     console.error(`Could not write verification event for guild ${data.guildId}:`, error.message);
-    return false;
+    return { eventId, failed: true };
+  }
+}
+
+async function getVerificationTimeline(guildId, referenceId) {
+  try {
+    return await getSql()`
+      SELECT event_id, reference_id, guild_id, user_id, username, action, reason,
+             click_ms, account_age, ip_flagged, raid_mode, created_at
+      FROM verification_events
+      WHERE guild_id = ${guildId} AND reference_id = ${referenceId}
+      ORDER BY created_at ASC
+      LIMIT 100
+    `;
+  } catch (error) {
+    console.error(`Could not load verification timeline for guild ${guildId}:`, error.message);
+    return [];
   }
 }
 
@@ -242,6 +260,7 @@ module.exports = {
   getWebhookUrl,
   logQuarantine,
   logVerificationEvent,
+  getVerificationTimeline,
   addToQueue,
   updateQueue,
   getQueue,

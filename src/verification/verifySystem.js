@@ -35,7 +35,9 @@ async function sendReply(interaction, embed) {
 
 async function recordAction(member, state, data) {
   const accountAge = data.accountAge ?? accountAgeDays(member);
-  await logVerificationEvent({
+  const loggedEvent = await logVerificationEvent({
+    eventId: data.eventId,
+    referenceId: data.referenceId,
     guildId: member.guild.id,
     userId: member.id,
     username: member.user.tag,
@@ -51,6 +53,8 @@ async function recordAction(member, state, data) {
     logType: data.logType,
     color: data.color,
     member,
+    referenceId: data.referenceId,
+    eventId: loggedEvent?.eventId || data.eventId,
     accountAge,
     clickMs: data.clickMs ?? null,
     reason: data.reason,
@@ -98,6 +102,7 @@ async function quarantineUser(member, config, reason, options = {}) {
     clickMs,
     accountAge,
     ipFlagged: options.ipFlagged,
+    referenceId: options.referenceId,
     logType: options.logType || (reason === 'VPN_PROXY_DETECTED' ? 'vpnDetected' : 'locked')
   });
 }
@@ -138,6 +143,7 @@ async function handleVerifyStart(interaction, config) {
 
   // Check for existing pending token
   let token = null;
+  let referenceId = null;
   try {
     const pendingRes = await fetch(
       websiteUrl(`/api/verify/pending?userId=${member.id}&guildId=${interaction.guildId}`),
@@ -156,11 +162,13 @@ async function handleVerifyStart(interaction, config) {
         return;
       }
       if (data?.cooldownUntil && new Date(data.cooldownUntil).getTime() > Date.now()) {
-        await sendLiveUpdate(member.guild, { logType: 'cooldown', member, attempts: data.attempts || 1, cooldownUntil: data.cooldownUntil, reason: data.failureReason });
+        referenceId = data.referenceId || null;
+        await sendLiveUpdate(member.guild, { logType: 'cooldown', member, referenceId, attempts: data.attempts || 1, cooldownUntil: data.cooldownUntil, reason: data.failureReason });
         await interaction.editReply({ embeds: [embeds.replies.retryCooldown(data.attempts || 1, data.cooldownUntil, data.failureReason)] });
         return;
       }
       token = data?.token || null;
+      referenceId = data?.referenceId || null;
     } else {
       console.error(`[Verify] Pending check returned ${pendingRes.status}`);
     }
@@ -190,7 +198,9 @@ async function handleVerifyStart(interaction, config) {
       });
       console.log('[Verify] Token create status:', createRes.status);
       if (createRes.ok) {
+        const created = await createRes.json().catch(() => ({}));
         token = newToken;
+        referenceId = created?.referenceId || null;
       } else {
         const responseText = await createRes.text().catch(() => '');
         console.error(`[Verify] Token create response: ${responseText.slice(0, 200)}`);
@@ -212,6 +222,15 @@ async function handleVerifyStart(interaction, config) {
 
   const verifyURL = websiteUrl(`/verify?token=${encodeURIComponent(token)}`);
   console.log('[Verify] Sending link to', member.id, ':', verifyURL);
+  const linkEvent = await logVerificationEvent({
+    referenceId,
+    guildId: member.guild.id,
+    userId: member.id,
+    username: member.user.tag,
+    action: 'VERIFICATION_LINK_CREATED',
+    reason: 'Verification link issued',
+    accountAge: accountAgeDays(member)
+  });
 
   await interaction.editReply({
     embeds: [
@@ -234,7 +253,7 @@ async function handleVerifyStart(interaction, config) {
       )
     ]
   });
-  await sendLiveUpdate(member.guild, { logType: 'linkCreated', member, expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
+  await sendLiveUpdate(member.guild, { logType: 'linkCreated', member, referenceId, eventId: linkEvent?.eventId, expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
 }
 
 module.exports = {
