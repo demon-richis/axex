@@ -1,17 +1,61 @@
 const express = require('express');
+const crypto = require('crypto');
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 const { sendLiveUpdate } = require('./liveUpdate');
 
 let server;
 let discordClient;
+const webhookBuckets = new Map();
+
+app.get('/health', (_req, res) => {
+  res.json({
+    status: discordClient?.isReady() ? 'ok' : 'starting',
+    service: 'axex-bot-webhook',
+    ready: Boolean(discordClient?.isReady()),
+    guilds: discordClient?.guilds.cache.size ?? 0,
+    checkedAt: new Date().toISOString(),
+  });
+});
+
+app.use('/webhook', (req, res, next) => {
+  const address = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown')
+    .split(',')[0]
+    .trim();
+  const now = Date.now();
+  const current = webhookBuckets.get(address);
+  const bucket = !current || now - current.startedAt >= 60_000
+    ? { startedAt: now, count: 0 }
+    : current;
+  bucket.count += 1;
+  webhookBuckets.set(address, bucket);
+  if (webhookBuckets.size > 10_000) {
+    for (const [key, value] of webhookBuckets) {
+      if (now - value.startedAt > 120_000) webhookBuckets.delete(key);
+    }
+  }
+  if (bucket.count > 30) {
+    const retryAfter = Math.max(1, Math.ceil((60_000 - (now - bucket.startedAt)) / 1000));
+    return res.status(429).set('Retry-After', String(retryAfter)).json({
+      received: false,
+      error: 'Rate limit exceeded',
+      retryAfterSeconds: retryAfter,
+    });
+  }
+  return next();
+});
 
 function validateKey(req, res) {
-  const configuredKeys = [process.env.AXEX_BOT_API_KEY, process.env.WEBSITE_API_KEY]
+  const configuredKeys = [process.env.AXEX_BOT_API_KEY]
     .map((value) => value?.trim())
     .filter(Boolean);
   const providedKey = String(req.headers['x-api-key'] || '').trim();
-  const valid = configuredKeys.length > 0 && configuredKeys.includes(providedKey);
+  const providedBuffer = Buffer.from(providedKey);
+  const valid = configuredKeys.some((configuredKey) => {
+    const expectedBuffer = Buffer.from(configuredKey);
+    return expectedBuffer.length === providedBuffer.length
+      && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+  });
   console.log('[WebhookReceiver] Authentication:', {
     accepted: valid,
     configured: configuredKeys.length > 0,

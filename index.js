@@ -13,6 +13,10 @@ if (!process.env.BOT_TOKEN) {
   process.exit(1);
 }
 
+for (const name of ['AXEX_BOT_API_KEY', 'WEBSITE_API_KEY', 'WEBSITE_URL', 'INTELLIGENCE_URL', 'INTELLIGENCE_API_KEY']) {
+  if (!process.env[name]) console.warn(`[Axex] ${name} is not configured; related integrations may be unavailable`);
+}
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
