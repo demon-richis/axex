@@ -71,7 +71,7 @@ function validateKey(req, res) {
 app.post('/webhook/intelligence-event', async (req, res) => {
   if (!validateKey(req, res)) return;
 
-  const { guildId, userId, source, result } = req.body || {};
+  const { guildId, userId, referenceId, source, result } = req.body || {};
   if (!guildId || !userId || !result || typeof result !== 'object') {
     return res.status(400).json({ received: false, error: 'Invalid intelligence event' });
   }
@@ -88,6 +88,7 @@ app.post('/webhook/intelligence-event', async (req, res) => {
     await sendLiveUpdate(guild, {
       logType: 'intelligenceAnalysis',
       member,
+      referenceId,
       source: String(source || 'verification portal').slice(0, 80),
       result: {
         riskScore: Number.isFinite(Number(result.riskScore)) ? Number(result.riskScore) : null,

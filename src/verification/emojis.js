@@ -26,7 +26,7 @@ const E = {
   ban: emoji('axex_ban', '1556253718276476949'),
   invisible: emoji('axex_invisible', '1555969322902495283'),
   warning: emoji('axex_warning', '1555947291259568238'),
-  success: emoji('axex_success', '1555947277187682315'),
+  success: emoji('axex_success', '1555947271787682315'),
   antiRaid: emoji('axex_anti_raid', '1556704987541672099'),
   antiNuke: emoji('axex_anti_nuke', '1556704985151180992'),
   idCard: emoji('axex_id_card', '1556704981761917058'),

@@ -129,14 +129,6 @@ async function execute(member) {
     if (ping) setTimeout(() => ping.delete().catch(() => {}), 8_000);
   }
 
-  await recordAction(member, state, {
-    action: 'MEMBER JOINED',
-    dbAction: 'MEMBER_JOINED',
-    color: 0x5865F2,
-    reason: 'VERIFICATION_STARTED'
-  });
-
-
 }
 
 module.exports = { execute };
