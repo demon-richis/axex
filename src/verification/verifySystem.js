@@ -139,8 +139,6 @@ async function handleVerifyStart(interaction, config) {
     return;
   }
 
-  await sendLiveUpdate(member.guild, { logType: 'verificationStarted', member });
-
   // Check for existing pending token
   let token = null;
   let referenceId = null;
@@ -157,13 +155,11 @@ async function handleVerifyStart(interaction, config) {
       const data = await pendingRes.json();
       console.log('[Verify] Pending token data:', data);
       if (data?.locked) {
-        await sendLiveUpdate(member.guild, { logType: 'locked', member, attempts: data.attempts || 3, reason: data.failureReason });
         await interaction.editReply({ embeds: [embeds.replies.attemptsExhausted(data.attempts || 3, data.failureReason)] });
         return;
       }
       if (data?.cooldownUntil && new Date(data.cooldownUntil).getTime() > Date.now()) {
         referenceId = data.referenceId || null;
-        await sendLiveUpdate(member.guild, { logType: 'cooldown', member, referenceId, attempts: data.attempts || 1, cooldownUntil: data.cooldownUntil, reason: data.failureReason });
         await interaction.editReply({ embeds: [embeds.replies.retryCooldown(data.attempts || 1, data.cooldownUntil, data.failureReason)] });
         return;
       }
@@ -253,7 +249,6 @@ async function handleVerifyStart(interaction, config) {
       )
     ]
   });
-  await sendLiveUpdate(member.guild, { logType: 'linkCreated', member, referenceId, eventId: linkEvent?.eventId, expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
 }
 
 module.exports = {

@@ -1,15 +1,5 @@
+const E = require('../../verification/emojis');
 const { EmbedBuilder } = require('discord.js');
-
-const E = {
-  success: '<:success:1555947271787682315>',
-  verified: '<:success:1555947271787682315>',
-  unsuccessful: '<:failed:1555947263304671384>',
-  protected: '<:protected:1555934648490655815>',
-  pending: '<:cooldown:1555947260112670882>',
-  error: '<:warning:1555947291259568238>',
-  verify: '<:captcha:1555934211922198588>',
-  ban: '<:quarantine:1555947272091729950>',
-};
 
 function reply(color, title, description, fields = []) {
   const embed = new EmbedBuilder().setColor(color).setDescription(`${title}\n\n${description}`).setTimestamp();
