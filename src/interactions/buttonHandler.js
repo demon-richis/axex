@@ -1,5 +1,6 @@
 const { MessageFlags } = require('discord.js');
 const { getGuildConfig } = require('../db/client');
+const E = require('../verification/emojis');
 const { handleVerifyStart } = require('../verification/verifySystem');
 const { handleSetupButton } = require('../commands/vsetup');
 const embeds = require('../config/messages');
@@ -14,7 +15,7 @@ async function execute(interaction) {
 
   if (interaction.customId === 'axex_help') {
     await interaction.reply({
-      content: '<:axex_help:1555947266794324109> Follow the verification link, sign in with Discord, complete the short challenge, and return here. If you are on cooldown, wait until the displayed retry time before trying again.',
+      content: `${E.help} Follow the verification link, sign in with Discord, complete the short challenge, and return here. If you are on cooldown, wait until the displayed retry time before trying again.`,
       flags: MessageFlags.Ephemeral,
     });
     return;

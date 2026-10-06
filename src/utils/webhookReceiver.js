@@ -137,7 +137,7 @@ app.post('/webhook/verify-result', async (req, res) => {
     const state = await getGuildState(guildId);
     if (!config) return res.status(404).json({ received: false, error: 'Guild is not configured' });
 
-    const callbackEvent = await logVerificationEvent({
+    await logVerificationEvent({
       referenceId,
       guildId,
       userId,
@@ -146,15 +146,6 @@ app.post('/webhook/verify-result', async (req, res) => {
       reason: flagReason || failureReason || (passed ? 'VERIFIED' : 'VERIFICATION_FAILED'),
       accountAge: accountAgeDays
     });
-    await sendLiveUpdate(member.guild, {
-      logType: 'callbackReceived',
-      member,
-      referenceId,
-      eventId: callbackEvent?.eventId,
-      passed: Boolean(passed),
-      reason: flagReason || failureReason || (passed ? 'VERIFIED' : 'VERIFICATION_FAILED')
-    });
-
     if (!passed) {
       const reason = vpnDetected
         ? 'VPN_PROXY_DETECTED'
@@ -199,7 +190,6 @@ app.post('/webhook/verify-result', async (req, res) => {
               : 'wrongAnswer',
           referenceId
         });
-        await sendLiveUpdate(member.guild, { logType: 'cooldown', member, referenceId, attempts: attempts ?? 1, cooldownUntil, reason });
         await member.send({
           embeds: [embeds.replies.verificationFailed(reason, attempts ?? 1, cooldownUntil)]
         }).catch(() => {});
