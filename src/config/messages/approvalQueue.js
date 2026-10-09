@@ -7,7 +7,7 @@ function base(color, description) {
 
 module.exports.queueList = (entries) => {
   const description = entries.length === 0
-    ? '✅ No pending users in the queue.'
+    ? ' No pending users in the queue.'
     : entries.map((entry, index) =>
       `**${index + 1}.** <@${entry.user_id}> \`${entry.username}\`\nReason: \`${entry.reason}\` • Age: ${entry.account_age}d • <t:${Math.floor(new Date(entry.created_at).getTime() / 1000)}:R>`
     ).join('\n\n');
