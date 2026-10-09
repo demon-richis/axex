@@ -116,32 +116,43 @@ app.post('/webhook/verify-result', async (req, res) => {
     passed, vpnDetected,
     accountAgeDays, clickMs,
     flagReason, failureReason, attempts, cooldownUntil, locked
-  } = req.body;
+  } = req.body || {};
+  const normalizedGuildId = String(guildId || '').trim();
+  const normalizedUserId = String(userId || '').trim();
+  const normalizedReferenceId = String(referenceId || '').trim() || null;
+  if (!normalizedGuildId || !normalizedUserId || typeof passed !== 'boolean') {
+    return res.status(400).json({
+      received: false,
+      error: 'Invalid verification result payload',
+      code: 'INVALID_VERIFY_RESULT',
+      referenceId: normalizedReferenceId,
+    });
+  }
 
   try {
     if (!discordClient) {
       console.error('[WebhookReceiver] Discord client is not initialized');
       return res.status(503).json({ received: false, error: 'Discord client is not initialized' });
     }
-    const guild = await discordClient.guilds.fetch(guildId).catch(() => null);
-    if (!guild) return res.status(404).json({ received: false, error: 'Guild not found' });
+    const guild = await discordClient.guilds.fetch(normalizedGuildId).catch(() => null);
+    if (!guild) return res.status(404).json({ received: false, error: 'Guild not found', code: 'GUILD_NOT_FOUND', referenceId: normalizedReferenceId });
 
-    const member = await guild.members.fetch(userId).catch(() => null);
-    if (!member) return res.status(404).json({ received: false, error: 'Member not found' });
+    const member = await guild.members.fetch(normalizedUserId).catch(() => null);
+    if (!member) return res.status(404).json({ received: false, error: 'Member not found', code: 'MEMBER_NOT_FOUND', referenceId: normalizedReferenceId });
 
     const { getGuildConfig, getGuildState, logVerificationEvent } = require('../db/client');
     const { quarantineUser, recordAction } = require('../verification/verifySystem');
     const { recordEvent } = require('./intelligenceClient');
     const embeds = require('../config/messages');
 
-    const config = await getGuildConfig(guildId);
-    const state = await getGuildState(guildId);
-    if (!config) return res.status(404).json({ received: false, error: 'Guild is not configured' });
+    const config = await getGuildConfig(normalizedGuildId);
+    const state = await getGuildState(normalizedGuildId);
+    if (!config) return res.status(404).json({ received: false, error: 'Guild is not configured', code: 'GUILD_NOT_CONFIGURED', referenceId: normalizedReferenceId });
 
     await logVerificationEvent({
-      referenceId,
-      guildId,
-      userId,
+      referenceId: normalizedReferenceId,
+      guildId: normalizedGuildId,
+      userId: normalizedUserId,
       username: member.user.tag,
       action: passed ? 'CALLBACK_RECEIVED_PASSED' : 'CALLBACK_RECEIVED_FAILED',
       reason: flagReason || failureReason || (passed ? 'VERIFIED' : 'VERIFICATION_FAILED'),
@@ -163,7 +174,7 @@ app.post('/webhook/verify-result', async (req, res) => {
           accountAge: accountAgeDays,
           clickMs,
           logType: vpnDetected ? 'vpnDetected' : 'locked',
-          referenceId
+          referenceId: normalizedReferenceId
         });
         await member.send({
           embeds: [embeds.replies.verificationLocked(attempts ?? 3, reason)]
@@ -189,12 +200,12 @@ app.post('/webhook/verify-result', async (req, res) => {
             : failureReason === 'BOT_DETECTED'
               ? 'botDetected'
               : 'wrongAnswer',
-          referenceId
+          referenceId: normalizedReferenceId
         });
         await member.send({
           embeds: [embeds.replies.verificationFailed(reason, attempts ?? 1, cooldownUntil)]
         }).catch(() => {});
-        await recordEvent(userId, guildId, 'VERIFY_FAIL', {
+        await recordEvent(normalizedUserId, normalizedGuildId, 'VERIFY_FAIL', {
           clickMs,
           metadata: { reason, vpnDetected: Boolean(vpnDetected), attempts: attempts ?? 1, terminal, referenceId }
         });
@@ -202,18 +213,38 @@ app.post('/webhook/verify-result', async (req, res) => {
       return res.json({ received: true, passed: false, terminal });
     }
 
-    // Passed — give verified role, remove unverified
-    const removed = await member.roles.remove(config.unverified_role_id).catch((error) => {
-      console.error('[WebhookReceiver] Could not remove unverified role:', error.message);
-      return null;
-    });
-    const added = await member.roles.add(config.verified_role_id).catch((error) => {
-      console.error('[WebhookReceiver] Could not add verified role:', error.message);
-      return null;
-    });
-    if (!removed || !added) {
-      await sendLiveUpdate(member.guild, { logType: 'roleUpdateFailed', member, referenceId, roleName: !removed ? 'unverified' : 'verified', error: 'Discord role update returned no member' });
-      return res.status(502).json({ received: false, error: 'Discord role update failed' });
+    // Passed — give verified role, remove unverified.
+    if (!config.verified_role_id || !config.unverified_role_id) {
+      const message = 'Guild verification roles are not configured';
+      await logVerificationEvent({
+        referenceId: normalizedReferenceId,
+        guildId: normalizedGuildId,
+        userId: normalizedUserId,
+        username: member.user.tag,
+        action: 'VERIFICATION_ROLE_UPDATE_FAILED',
+        reason: message,
+        accountAge: accountAgeDays,
+      });
+      return res.status(500).json({ received: false, error: message, code: 'ROLE_CONFIGURATION_MISSING', referenceId: normalizedReferenceId });
+    }
+    try {
+      await member.roles.remove(config.unverified_role_id);
+      await member.roles.add(config.verified_role_id);
+      await member.fetch().catch(() => member);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Discord role update failed';
+      console.error('[WebhookReceiver] Could not update verification roles:', message);
+      await logVerificationEvent({
+        referenceId: normalizedReferenceId,
+        guildId: normalizedGuildId,
+        userId: normalizedUserId,
+        username: member.user.tag,
+        action: 'VERIFICATION_ROLE_UPDATE_FAILED',
+        reason: message.slice(0, 500),
+        accountAge: accountAgeDays,
+      });
+      await sendLiveUpdate(member.guild, { logType: 'roleUpdateFailed', member, referenceId: normalizedReferenceId, roleName: 'verified', error: message });
+      return res.status(502).json({ received: false, error: 'Discord role update failed', code: 'ROLE_UPDATE_FAILED', detail: message.slice(0, 300), referenceId: normalizedReferenceId });
     }
 
     await recordAction(member, state, {
@@ -224,18 +255,40 @@ app.post('/webhook/verify-result', async (req, res) => {
       clickMs,
       accountAge: accountAgeDays,
       logType: 'verified',
-      referenceId
+      referenceId: normalizedReferenceId
     });
     await member.send({ embeds: [embeds.replies.success()] }).catch(() => {});
 
     try {
-      await recordEvent(userId, guildId, 'VERIFY_SUCCESS', { clickMs, metadata: { accountAgeDays, referenceId } });
+      await recordEvent(normalizedUserId, normalizedGuildId, 'VERIFY_SUCCESS', { clickMs, metadata: { accountAgeDays, referenceId: normalizedReferenceId } });
     } catch {}
     return res.json({ received: true, passed: true });
 
   } catch (error) {
-    console.error('[WebhookReceiver] Error:', error.message);
-    if (!res.headersSent) res.status(500).json({ received: false, error: 'Webhook processing failed' });
+    const message = error instanceof Error ? error.message : 'Webhook processing failed';
+    console.error('[WebhookReceiver] Error:', message);
+    try {
+      const { logVerificationEvent } = require('../db/client');
+      await logVerificationEvent({
+        referenceId: normalizedReferenceId,
+        guildId: normalizedGuildId,
+        userId: normalizedUserId,
+        username: 'unknown',
+        action: 'CALLBACK_PROCESSING_FAILED',
+        reason: message.slice(0, 500),
+      });
+    } catch (logError) {
+      console.error('[WebhookReceiver] Could not write processing failure event:', logError.message);
+    }
+    if (!res.headersSent) {
+      res.status(500).json({
+        received: false,
+        error: 'Webhook processing failed',
+        code: 'CALLBACK_PROCESSING_FAILED',
+        detail: message.slice(0, 300),
+        referenceId: normalizedReferenceId,
+      });
+    }
   }
 });
 
