@@ -84,6 +84,24 @@ ALTER TABLE verification_events ADD COLUMN IF NOT EXISTS event_id TEXT;
 ALTER TABLE verification_events ADD COLUMN IF NOT EXISTS reference_id TEXT;
 CREATE INDEX IF NOT EXISTS verification_events_reference_idx ON verification_events (guild_id, reference_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS role_update_retries (
+  id              SERIAL PRIMARY KEY,
+  guild_id        TEXT NOT NULL,
+  user_id         TEXT NOT NULL,
+  reference_id    TEXT,
+  target_role_id  TEXT NOT NULL,
+  remove_role_id  TEXT,
+  attempt_count   INTEGER DEFAULT 0,
+  next_attempt_at TIMESTAMPTZ DEFAULT NOW(),
+  status          TEXT DEFAULT 'pending',
+  last_error      TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS role_update_retries_pending_idx
+  ON role_update_retries (status, next_attempt_at);
+
 CREATE TABLE IF NOT EXISTS quarantine_queue (
   id           SERIAL PRIMARY KEY,
   guild_id     TEXT NOT NULL,

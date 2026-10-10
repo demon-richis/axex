@@ -1,4 +1,5 @@
 const {
+  AttachmentBuilder,
   EmbedBuilder,
   MessageFlags,
   PermissionFlagsBits,
@@ -54,9 +55,22 @@ async function execute(interaction) {
   const referenceId = String(interaction.options.getString("reference") || "")
     .trim()
     .toUpperCase();
-  if (!/^AX-[A-Z0-9]{8}$/.test(referenceId)) {
+  const filterUser = interaction.options.getUser?.("user");
+  const action =
+    String(interaction.options.getString("action") || "")
+      .trim()
+      .toUpperCase() || null;
+  const format = interaction.options.getString("format") || "embed";
+  if (referenceId && !/^AX-[A-Z0-9]{8}$/.test(referenceId)) {
     await interaction.reply({
       content: "Use a valid case ID such as `AX-1A2B3C4D`.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  if (!referenceId && !filterUser && !action) {
+    await interaction.reply({
+      content: "Provide a case ID, a user, or an action filter.",
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -64,11 +78,12 @@ async function execute(interaction) {
 
   const events = await getVerificationTimeline(
     interaction.guildId,
-    referenceId,
+    referenceId || null,
+    { userId: filterUser?.id || null, action },
   );
   if (!events.length) {
     await interaction.reply({
-      content: `No verification history was found for case \`${referenceId}\` in this server.`,
+      content: `No verification history matched the requested filters in this server.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -95,10 +110,14 @@ async function execute(interaction) {
         ? 0x57f287
         : 0xffa500,
     )
-    .setTitle(`Verification Case ${referenceId}`)
+    .setTitle(
+      referenceId
+        ? `Verification Case ${referenceId}`
+        : "Verification Audit Search",
+    )
     .setDescription(
       `**Complete verification audit**\n\n` +
-        `This report contains every recorded event for this case.`,
+        `This report contains every recorded event matching the selected filters.`,
     )
     .addFields(
       {
@@ -161,12 +180,36 @@ async function execute(interaction) {
           })
           .join("\n\n"),
       )
-      .setFooter({ text: `Case ${referenceId} • All recorded event details` });
+      .setFooter({
+        text: `${referenceId ? `Case ${referenceId}` : "Filtered audit"} • All recorded event details`,
+      });
     return embed;
   });
 
   // Discord allows at most 10 embeds per message; the 12-event pages above
   // keep the complete 100-event database limit within that boundary.
+  if (format === "json") {
+    const file = new AttachmentBuilder(
+      Buffer.from(
+        JSON.stringify(
+          {
+            referenceId: referenceId || null,
+            filters: { userId: filterUser?.id || null, action },
+            events,
+          },
+          null,
+          2,
+        ),
+      ),
+      { name: `axex-verification-${referenceId || "audit"}.json` },
+    );
+    await interaction.reply({
+      content: "Attached: complete verification audit data.",
+      files: [file],
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
   await interaction.reply({
     embeds: [summary, ...detailEmbeds.slice(0, 9)],
     flags: MessageFlags.Ephemeral,

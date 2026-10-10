@@ -1,15 +1,17 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const { neon } = require('@neondatabase/serverless');
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+const { neon } = require("@neondatabase/serverless");
 
 let sql = null;
 
 function getSql() {
   if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is missing. Database-backed Axex features are unavailable.');
+    throw new Error(
+      "DATABASE_URL is missing. Database-backed Axex features are unavailable.",
+    );
   }
 
   if (!sql) sql = neon(process.env.DATABASE_URL);
@@ -18,25 +20,32 @@ function getSql() {
 
 async function initDB() {
   try {
-    const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+    const schema = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
     // Execute statements separately: Neon HTTP queries do not depend on support
     // for multi-statement SQL strings.
-    const statements = schema.split(';').map((statement) => statement.trim()).filter(Boolean);
+    const statements = schema
+      .split(";")
+      .map((statement) => statement.trim())
+      .filter(Boolean);
     for (const statement of statements) await getSql()(statement);
-    console.log('NeonDB connected and schema initialized');
+    console.log("NeonDB connected and schema initialized");
     return true;
   } catch (error) {
-    console.error('Could not initialize NeonDB schema:', error.message);
+    console.error("Could not initialize NeonDB schema:", error.message);
     return false;
   }
 }
 
 async function getGuildConfig(guildId) {
   try {
-    const rows = await getSql()`SELECT * FROM guild_config WHERE guild_id = ${guildId}`;
+    const rows =
+      await getSql()`SELECT * FROM guild_config WHERE guild_id = ${guildId}`;
     return rows[0] || null;
   } catch (error) {
-    console.error(`Could not load configuration for guild ${guildId}:`, error.message);
+    console.error(
+      `Could not load configuration for guild ${guildId}:`,
+      error.message,
+    );
     return null;
   }
 }
@@ -57,7 +66,7 @@ async function saveGuildConfig(config) {
         ${config.quarantinedRoleId}, ${config.memberRoleIds || []}, ${config.verifyTimeout ?? 60},
         ${config.minAccountAge ?? 7}, ${config.raidThreshold ?? 10}, ${config.raidAge ?? 30},
         ${config.raidTiming ?? 2500}, ${config.honeypot ?? true}, ${config.vpnCheck ?? true},
-        ${config.newAccountAction ?? 'warn'}, ${config.suspiciousAction ?? 'flag'},
+        ${config.newAccountAction ?? "warn"}, ${config.suspiciousAction ?? "flag"},
         ${config.webhookUrl ?? null}, true
       )
       ON CONFLICT (guild_id) DO UPDATE SET
@@ -82,7 +91,10 @@ async function saveGuildConfig(config) {
     `;
     return true;
   } catch (error) {
-    console.error(`Could not save configuration for guild ${config.guildId}:`, error.message);
+    console.error(
+      `Could not save configuration for guild ${config.guildId}:`,
+      error.message,
+    );
     return false;
   }
 }
@@ -94,7 +106,10 @@ async function savePanelMessageId(guildId, messageId) {
     `;
     return true;
   } catch (error) {
-    console.error(`Could not save verification panel for guild ${guildId}:`, error.message);
+    console.error(
+      `Could not save verification panel for guild ${guildId}:`,
+      error.message,
+    );
     return false;
   }
 }
@@ -106,7 +121,10 @@ async function getWebhookUrl(guildId) {
     `;
     return rows[0]?.webhook_url || null;
   } catch (error) {
-    console.error(`Could not fetch webhook URL for guild ${guildId}:`, error.message);
+    console.error(
+      `Could not fetch webhook URL for guild ${guildId}:`,
+      error.message,
+    );
     return null;
   }
 }
@@ -121,7 +139,10 @@ async function saveMemberRoleIds(guildId, memberRoleIds) {
     `;
     return true;
   } catch (error) {
-    console.error(`Could not save member roles for guild ${guildId}:`, error.message);
+    console.error(
+      `Could not save member roles for guild ${guildId}:`,
+      error.message,
+    );
     return false;
   }
 }
@@ -134,13 +155,17 @@ async function logQuarantine(guildId, userId, reason, clickMs, accountAge) {
     `;
     return true;
   } catch (error) {
-    console.error(`Could not write security log for guild ${guildId}:`, error.message);
+    console.error(
+      `Could not write security log for guild ${guildId}:`,
+      error.message,
+    );
     return false;
   }
 }
 
 async function logVerificationEvent(data) {
-  const eventId = data.eventId || `EV-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
+  const eventId =
+    data.eventId || `EV-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
   try {
     await getSql()`
       INSERT INTO verification_events
@@ -152,24 +177,103 @@ async function logVerificationEvent(data) {
     `;
     return { eventId };
   } catch (error) {
-    console.error(`Could not write verification event for guild ${data.guildId}:`, error.message);
+    console.error(
+      `Could not write verification event for guild ${data.guildId}:`,
+      error.message,
+    );
     return { eventId, failed: true };
   }
 }
 
-async function getVerificationTimeline(guildId, referenceId) {
+async function getVerificationTimeline(
+  guildId,
+  referenceId = null,
+  filters = {},
+) {
   try {
     return await getSql()`
       SELECT event_id, reference_id, guild_id, user_id, username, action, reason,
              click_ms, account_age, ip_flagged, raid_mode, created_at
       FROM verification_events
-      WHERE guild_id = ${guildId} AND reference_id = ${referenceId}
+      WHERE guild_id = ${guildId}
+        AND (${referenceId}::text IS NULL OR reference_id = ${referenceId})
+        AND (${filters.userId ?? null}::text IS NULL OR user_id = ${filters.userId ?? null})
+        AND (${filters.action ?? null}::text IS NULL OR action = ${filters.action ?? null})
       ORDER BY created_at ASC
-      LIMIT 100
+      LIMIT ${Math.min(100, Math.max(1, Number(filters.limit) || 100))}
     `;
   } catch (error) {
-    console.error(`Could not load verification timeline for guild ${guildId}:`, error.message);
+    console.error(
+      `Could not load verification timeline for guild ${guildId}:`,
+      error.message,
+    );
     return [];
+  }
+}
+
+async function createRoleUpdateRetry(data) {
+  try {
+    const rows = await getSql()`
+      INSERT INTO role_update_retries
+        (guild_id, user_id, reference_id, target_role_id, remove_role_id, last_error)
+      VALUES
+        (${data.guildId}, ${data.userId}, ${data.referenceId ?? null}, ${data.targetRoleId},
+         ${data.removeRoleId ?? null}, ${String(data.error || "Role update failed").slice(0, 500)})
+      RETURNING id
+    `;
+    return rows[0]?.id ?? null;
+  } catch (error) {
+    console.error(
+      `Could not queue role update for guild ${data.guildId}:`,
+      error.message,
+    );
+    return null;
+  }
+}
+
+async function getPendingRoleUpdateRetries(limit = 25) {
+  try {
+    return await getSql()`
+      SELECT * FROM role_update_retries
+      WHERE status = 'pending' AND next_attempt_at <= NOW()
+      ORDER BY next_attempt_at ASC
+      LIMIT ${Math.min(100, Math.max(1, limit))}
+    `;
+  } catch (error) {
+    console.error("Could not load role update retries:", error.message);
+    return [];
+  }
+}
+
+async function completeRoleUpdateRetry(id) {
+  try {
+    await getSql()`
+      UPDATE role_update_retries SET status = 'completed', updated_at = NOW() WHERE id = ${id}
+    `;
+    return true;
+  } catch (error) {
+    console.error(`Could not complete role update retry ${id}:`, error.message);
+    return false;
+  }
+}
+
+async function failRoleUpdateRetry(id, error, attemptCount) {
+  try {
+    const attempts = Number(attemptCount) + 1;
+    const terminal = attempts >= 5;
+    await getSql()`
+      UPDATE role_update_retries
+      SET attempt_count = ${attempts},
+          status = ${terminal ? "failed" : "pending"},
+          next_attempt_at = NOW() + ${Math.min(300, 15 * 2 ** Math.min(attempts, 4))} * INTERVAL '1 second',
+          last_error = ${String(error || "Role update failed").slice(0, 500)},
+          updated_at = NOW()
+      WHERE id = ${id}
+    `;
+    return !terminal;
+  } catch (dbError) {
+    console.error(`Could not update role retry ${id}:`, dbError.message);
+    return false;
   }
 }
 
@@ -181,7 +285,10 @@ async function addToQueue(data) {
     `;
     return true;
   } catch (error) {
-    console.error(`Could not add queue entry for guild ${data.guildId}:`, error.message);
+    console.error(
+      `Could not add queue entry for guild ${data.guildId}:`,
+      error.message,
+    );
     return false;
   }
 }
@@ -208,7 +315,10 @@ async function getQueue(guildId) {
       ORDER BY created_at DESC
     `;
   } catch (error) {
-    console.error(`Could not load approval queue for guild ${guildId}:`, error.message);
+    console.error(
+      `Could not load approval queue for guild ${guildId}:`,
+      error.message,
+    );
     return [];
   }
 }
@@ -219,7 +329,8 @@ function defaultGuildState() {
 
 async function getGuildState(guildId) {
   try {
-    const rows = await getSql()`SELECT * FROM guild_state WHERE guild_id = ${guildId}`;
+    const rows =
+      await getSql()`SELECT * FROM guild_state WHERE guild_id = ${guildId}`;
     return rows[0] || defaultGuildState();
   } catch (error) {
     console.error(`Could not load state for guild ${guildId}:`, error.message);
@@ -232,9 +343,9 @@ async function setGuildState(guildId, updates) {
     const current = await getGuildState(guildId);
     const raidMode = updates.raidMode ?? current.raid_mode ?? false;
     const eventMode = updates.eventMode ?? current.event_mode ?? false;
-    const eventModeEnds = Object.hasOwn(updates, 'eventModeEnds')
+    const eventModeEnds = Object.hasOwn(updates, "eventModeEnds")
       ? updates.eventModeEnds
-      : current.event_mode_ends ?? null;
+      : (current.event_mode_ends ?? null);
     await getSql()`
       INSERT INTO guild_state (guild_id, raid_mode, event_mode, event_mode_ends, updated_at)
       VALUES (${guildId}, ${raidMode}, ${eventMode}, ${eventModeEnds}, NOW())
@@ -244,7 +355,11 @@ async function setGuildState(guildId, updates) {
         event_mode_ends = EXCLUDED.event_mode_ends,
         updated_at = NOW()
     `;
-    return { raid_mode: raidMode, event_mode: eventMode, event_mode_ends: eventModeEnds };
+    return {
+      raid_mode: raidMode,
+      event_mode: eventMode,
+      event_mode_ends: eventModeEnds,
+    };
   } catch (error) {
     console.error(`Could not save state for guild ${guildId}:`, error.message);
     return null;
@@ -261,9 +376,13 @@ module.exports = {
   logQuarantine,
   logVerificationEvent,
   getVerificationTimeline,
+  createRoleUpdateRetry,
+  getPendingRoleUpdateRetries,
+  completeRoleUpdateRetry,
+  failRoleUpdateRetry,
   addToQueue,
   updateQueue,
   getQueue,
   getGuildState,
-  setGuildState
+  setGuildState,
 };
