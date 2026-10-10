@@ -1,5 +1,9 @@
 const { ChannelType, PermissionFlagsBits } = require("discord.js");
-const { saveGuildConfig, savePanelMessageId } = require("../db/client");
+const {
+  getGuildConfig,
+  saveGuildConfig,
+  savePanelMessageId,
+} = require("../db/client");
 const embeds = require("../config/messages");
 const websiteUrl = require("../utils/websiteUrl");
 
@@ -399,12 +403,23 @@ async function autoSetup(guild, options = {}) {
       // non-fatal, bot works without website registration
     }
 
-    // Send static verification panel to verify channel
+    // Send a panel only when the configured panel is missing. This keeps
+    // repeated /axex repair runs idempotent and avoids duplicate buttons.
     try {
-      const { permanentPanel } = require("../config/messages/verify");
-      const panelMsg = await verifyChannel.send(permanentPanel(guild.name));
-      await savePanelMessageId(guild.id, panelMsg.id);
-      completed.push("Sent verification panel");
+      const savedConfig = await getGuildConfig(guild.id);
+      const existingPanel = savedConfig?.panel_message_id
+        ? await verifyChannel.messages
+            .fetch(savedConfig.panel_message_id)
+            .catch(() => null)
+        : null;
+      if (!existingPanel) {
+        const { permanentPanel } = require("../config/messages/verify");
+        const panelMsg = await verifyChannel.send(permanentPanel(guild.name));
+        await savePanelMessageId(guild.id, panelMsg.id);
+        completed.push("Sent verification panel");
+      } else {
+        completed.push("Verification panel already present");
+      }
     } catch {
       failed.push("Could not send verification panel");
     }
