@@ -14,7 +14,7 @@ module.exports = {
     `${E.loading} Preparing your verification link...`,
   axexRepairUsage: () =>
     `${E.reminder} **__Repair Required__**\n` +
-    `${E.invisible} ${E.arrow} Run \\`/axex repair\\` to repair the Axex installation.`,
+    `${E.invisible} ${E.arrow} Run \`/axex repair\` to repair the Axex installation.`,
   axexNotConfigured: () =>
     `${E.warning} **__Axex Not Configured__**\n` +
     `${E.invisible} ${E.arrow} Run `/vsetup` before using this command.`,
@@ -67,7 +67,7 @@ module.exports = {
     `${E.invisible} ${E.warning} You need **Manage Server** permission to view verification timelines.`,
   invalidCaseId: () =>
     `${E.warning} **__Invalid Case ID__**\n` +
-    `${E.invisible} ${E.arrow} Use a valid case ID such as \\`AX-1A2B3C4D\\`.`,
+    `${E.invisible} ${E.arrow} Use a valid case ID such as \`AX-1A2B3C4D\`.`,
   missingLogFilter: () =>
     `${E.warning} **__Audit Filter Required__**\n` +
     `${E.invisible} ${E.arrow} Provide a case ID, user, or action filter.`,

@@ -113,8 +113,7 @@ function details(events, referenceId) {
             return `${E.invisible} ${E.logs} **__${eventNumber}. ${safe(event.action)}__** ${timestamp(event.created_at, "R")}\n${eventDetails(event)}`;
           })
           .join("\n\n"),
-      )
-      ,
+      ),
   );
 }
 
