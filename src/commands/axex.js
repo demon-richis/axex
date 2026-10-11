@@ -23,8 +23,7 @@ async function repair(interaction) {
   const current = await getGuildConfig(interaction.guild.id);
   if (!current?.setup_done) {
     await interaction.editReply({
-      content:
-        "Axex is not configured on this server yet. Run `/vsetup` first.",
+      content: embeds.system.axexNotConfigured(),
     });
     return;
   }
@@ -74,7 +73,7 @@ async function execute(interaction) {
   if (interaction.options.getSubcommand() === "repair")
     return repair(interaction);
   await interaction.reply({
-    content: "Use `/axex repair` to repair the Axex installation.",
+    content: embeds.system.axexRepairUsage(),
     flags: MessageFlags.Ephemeral,
   });
 }

@@ -1,8 +1,4 @@
-const {
-  EmbedBuilder,
-  MessageFlags,
-  PermissionFlagsBits,
-} = require("discord.js");
+const { MessageFlags, PermissionFlagsBits } = require("discord.js");
 const {
   getGuildConfig,
   getQuarantineCase,
@@ -10,33 +6,19 @@ const {
   logVerificationEvent,
   resolveQuarantineCase,
 } = require("../db/client");
-
-function base(title, color = 0xef4444) {
-  return new EmbedBuilder()
-    .setColor(color)
-    .setTitle(`Axex Quarantine — ${title}`)
-    .setTimestamp();
-}
-
-function formatCase(item) {
-  return (
-    `**<@${item.user_id}>** \`${item.username}\`\n` +
-    `Case: \`${item.id}\` • Reason: \`${item.reason}\`\n` +
-    `Created: <t:${Math.floor(new Date(item.created_at).getTime() / 1000)}:R>`
-  );
-}
+const messages = require("../config/messages");
 
 async function execute(interaction) {
   if (!interaction.guild) {
     await interaction.reply({
-      content: "This command can only be used in a server.",
+      content: messages.system.quarantineServerOnly(),
       flags: MessageFlags.Ephemeral,
     });
     return;
   }
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
     await interaction.reply({
-      content: "You need Manage Server permission to manage quarantine cases.",
+      content: messages.system.manageServerRequired(),
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -45,12 +27,10 @@ async function execute(interaction) {
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === "list") {
     const cases = await getQuarantineCases(interaction.guild.id);
-    const embed = base(`Active Cases (${cases.length})`).setDescription(
-      cases.length
-        ? cases.slice(0, 20).map(formatCase).join("\n\n")
-        : "No active quarantine cases.",
-    );
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    await interaction.reply({
+      embeds: [messages.quarantine.activeCases(cases)],
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
 
@@ -58,42 +38,17 @@ async function execute(interaction) {
   const item = await getQuarantineCase(interaction.guild.id, user.id);
   if (!item) {
     await interaction.reply({
-      content: `No active quarantine case was found for <@${user.id}>.`,
+      content: messages.system.noActiveQuarantineCase(user.id),
       flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   if (subcommand === "inspect") {
-    const embed = base(`Case ${item.id}`).addFields(
-      {
-        name: "Member",
-        value: `<@${item.user_id}> \`${item.username}\``,
-        inline: true,
-      },
-      { name: "Reason", value: `\`${item.reason}\``, inline: true },
-      {
-        name: "Reference",
-        value: item.reference_id ? `\`${item.reference_id}\`` : "N/A",
-        inline: true,
-      },
-      {
-        name: "Account age",
-        value: `${item.account_age ?? "N/A"} days`,
-        inline: true,
-      },
-      {
-        name: "Response time",
-        value: `${item.click_ms ?? "N/A"} ms`,
-        inline: true,
-      },
-      {
-        name: "Created",
-        value: `<t:${Math.floor(new Date(item.created_at).getTime() / 1000)}:F>`,
-        inline: false,
-      },
-    );
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    await interaction.reply({
+      embeds: [messages.quarantine.caseDetails(item)],
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
 
@@ -105,7 +60,7 @@ async function execute(interaction) {
     const config = await getGuildConfig(interaction.guild.id);
     if (!member || !config?.setup_done) {
       await interaction.editReply({
-        content: "The member or Axex configuration is unavailable.",
+        content: messages.system.quarantineUnavailable(),
       });
       return;
     }
@@ -128,11 +83,11 @@ async function execute(interaction) {
         accountAge: item.account_age,
       });
       await interaction.editReply({
-        content: `Released <@${member.id}> from quarantine. The member must complete verification again.`,
+        content: messages.system.quarantineReleased(member.id),
       });
     } catch (error) {
       await interaction.editReply({
-        content: `Could not release the member: ${error.message}`,
+        content: messages.system.quarantineReleaseFailed(error),
       });
     }
   }
