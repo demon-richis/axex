@@ -135,9 +135,7 @@ async function quarantineUser(member, config, reason, options = {}) {
 
 async function handleVerifyStart(interaction, config, options = {}) {
   const member = interaction.member;
-  const E = require("./emojis");
   const {
-    EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
@@ -172,9 +170,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
       embeds: [
         embeds.replies.genericError
           ? embeds.replies.genericError()
-          : new EmbedBuilder().setDescription(
-              "❌ Verification service not configured.",
-            ),
+          : embeds.system.verificationServiceNotConfigured(),
       ],
     });
     return;
@@ -278,11 +274,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
   if (!token) {
     console.error("[Verify] Could not obtain token for user", member.id);
     await interaction.editReply({
-      embeds: [
-        new EmbedBuilder().setDescription(
-          `${E.unsuccessful} **__Error__**\n\nCould not generate verification link. Please try again.`,
-        ),
-      ],
+      embeds: [embeds.system.verificationLinkError()],
     });
     await sendLiveUpdate(member.guild, {
       logType: "serviceError",
@@ -306,16 +298,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
   });
 
   await interaction.editReply({
-    embeds: [
-      new EmbedBuilder()
-        .setDescription(
-          `${E.verify} __**Verification Link Ready**__\n\n` +
-            `> ${E.loading} Your personal verification link has been created\n` +
-            `> ${E.pending} **Expires in:** \`10 minutes\`\n` +
-            `> ${E.protected} **Note:** Link is single-use and tied to your account`,
-        )
-        .setTimestamp(),
-    ],
+    embeds: [embeds.system.verificationLinkReady(verifyURL)],
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()

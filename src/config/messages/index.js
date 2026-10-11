@@ -6,4 +6,6 @@ module.exports = {
   setup: require("./setup"),
   eventMode: require("./eventMode"),
   memberChecks: require("./memberChecks"),
+  system: require("./system"),
+  audit: require("./audit"),
 };

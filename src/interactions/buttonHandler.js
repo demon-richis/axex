@@ -1,6 +1,5 @@
 const { MessageFlags } = require("discord.js");
 const { getGuildConfig } = require("../db/client");
-const E = require("../verification/emojis");
 const { handleVerifyStart } = require("../verification/verifySystem");
 const { handleSetupButton } = require("../commands/vsetup");
 const embeds = require("../config/messages");
@@ -16,7 +15,7 @@ async function execute(interaction) {
 
   if (interaction.customId === "axex_help") {
     await interaction.reply({
-      content: `${E.help} Follow the verification link, sign in with Discord, complete the short challenge, and return here. If you are on cooldown, wait until the displayed retry time before trying again.`,
+      content: embeds.system.help(),
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -37,7 +36,7 @@ async function execute(interaction) {
     }
 
     await interaction.editReply({
-      content: `${E.loading} Preparing your verification link...`,
+      content: embeds.system.preparingVerification(),
     });
     await handleVerifyStart(interaction, config, { prechecked: true });
     return;

@@ -1,69 +1,95 @@
-const { EmbedBuilder } = require('discord.js');
-const E = require('../../verification/emojis');
-
-function safe(value, fallback = 'N/A', limit = 300) {
-  return String(value ?? fallback).replaceAll('`', "'").replaceAll('\n', ' ').slice(0, limit);
-}
-
-function memberLines(member) {
-  const id = member?.id || 'N/A';
-  const tag = member?.user?.tag;
-  return [
-    `> ${E.user} **User:** ${member ? `<@${id}>${tag ? ` \`${safe(tag)}\`` : ''}` : 'System'}`,
-    `> ${E.id} **ID:** \`${safe(id)}\``,
+module.exports.verificationCase = (state) => {
+  const final = state.final;
+  const action = String(
+    final?.action || state.latest?.action || "",
+  ).toUpperCase();
+  const result =
+    final?.logType === "verified" || action === "VERIFIED"
+      ? "VERIFIED"
+      : final?.logType === "vpnDetected" ||
+          final?.logType === "locked" ||
+          action.includes("QUARANTIN") ||
+          action.includes("BLOCKED")
+        ? "QUARANTINED"
+        : ["wrongAnswer", "timedOut", "botDetected"].includes(final?.logType) ||
+            action.includes("FAILED")
+          ? "FAILED"
+          : "IN PROGRESS";
+  const passed = result === "VERIFIED";
+  const quarantined = result === "QUARANTINED";
+  const statusEmoji = passed
+    ? E.success
+    : quarantined
+      ? E.quarantine
+      : state.errors.length
+        ? E.warning
+        : E.loading;
+  const color = passed
+    ? 0x57f287
+    : quarantined
+      ? 0xff0000
+      : state.errors.length
+        ? 0xff0000
+        : 0x5865f2;
+  const member = state.member;
+  const lines = [
+    `${statusEmoji} __**VERIFICATION CASE**__`,
+    "",
+    `> ${E.user} **User:** ${member ? `<@${member.id}> \`${safe(member.user?.tag)}\`` : "Unknown"}`,
+    `> ${E.idCard} **User ID:** \`${safe(member?.id)}\``,
+    `> ${E.logs} **Case ID:** \`${safe(state.referenceId)}\``,
+    `> ${E.webhook} **Status:** \`${result}\``,
   ];
-}
-
-function baseEmbed(emoji, title, member, fields, color) {
+  if (
+    state.accountAge !== undefined ||
+    state.clickMs !== undefined ||
+    final?.attempts !== undefined
+  ) {
+    lines.push("", `${E.scan} __**Verification details**__`);
+    if (state.accountAge !== undefined)
+      lines.push(
+        `> ${E.newAccount} **Account age:** \`${safe(state.accountAge, "N/A")} days\``,
+      );
+    if (state.clickMs !== undefined && state.clickMs !== null)
+      lines.push(
+        `> ${E.loading} **Response time:** \`${safe(state.clickMs)} ms\``,
+      );
+    if (final?.attempts !== undefined)
+      lines.push(`> ${E.timeout} **Attempt:** \`${safe(final.attempts)}\``);
+    if (final?.reason)
+      lines.push(`> ${E.warning} **Reason:** \`${safe(final.reason)}\``);
+  }
+  if (state.intelligence) {
+    const intelligence = state.intelligence;
+    lines.push("", `${E.idCard} __**Account intelligence**__`);
+    lines.push(
+      `> ${E.vpn} **Risk:** \`${safe(intelligence.riskLevel, "unknown").toUpperCase()}\` • \`${safe(intelligence.riskScore)} / 100\``,
+    );
+    lines.push(
+      `> ${E.protected} **Recommendation:** \`${safe(intelligence.recommendation, "unknown").toUpperCase()}\``,
+    );
+    lines.push(
+      `> ${E.scan} **Confidence:** \`${safe(intelligence.confidence, "unknown").toUpperCase()}\``,
+    );
+    if (intelligence.reasons?.length)
+      lines.push(
+        `> ${E.warning} **Signals:** \`${safe(intelligence.reasons.join(", "))}\``,
+      );
+  }
+  if (state.errors.length) {
+    lines.push("", `${E.warning} __**Errors**__`);
+    for (const error of state.errors.slice(-3))
+      lines.push(
+        `> ${E.role} **${safe(error.stage, "system")}:** \`${safe(error.message)}\``,
+      );
+  }
   return new EmbedBuilder()
     .setColor(color)
-    .setDescription(`${emoji} __**${title}**__\n\n${[...memberLines(member), ...fields].join('\n')}`)
+    .setDescription(lines.join("\n"))
+    .setFooter({
+      text: state.eventId
+        ? `Event: ${safe(state.eventId, "N/A", 80)}`
+        : "Axex verification audit",
+    })
     .setTimestamp();
-}
-
-function resultLabel(data) {
-  const action = String(data?.action || data?.outcome || '').toUpperCase();
-  if (action.includes('VERIF') && action.includes('FAIL')) return 'FAILED';
-  if (action.includes('QUARANT') || action.includes('LOCK') || action.includes('VPN')) return 'QUARANTINED';
-  if (action.includes('VERIFIED') || action === 'PASSED') return 'PASSED';
-  return safe(data?.outcome || data?.action, 'COMPLETED', 80).toUpperCase();
-}
-
-module.exports.verificationResult = (data) => {
-  const result = resultLabel(data);
-  const passed = result === 'PASSED';
-  const quarantined = result === 'QUARANTINED';
-  const emoji = passed ? E.success : quarantined ? E.quarantine : E.failed;
-  const color = passed ? 0x57f287 : quarantined ? 0xff0000 : 0xffa500;
-  return baseEmbed(emoji, 'MEMBER VERIFICATION RESULT', data.member, [
-    `> ${E.verify} **Result:** \`${result}\``,
-    `> ${E.warning} **Reason:** \`${safe(data.reason, 'No additional reason')}\``,
-    `> ${E.timeout} **Attempt:** \`${safe(data.attempts, 'N/A')}\``,
-    `> ${E.loading} **Response time:** \`${safe(data.clickMs, 'N/A')}\``,
-  ], color);
 };
-
-module.exports.intelligenceAnalysis = (member, result, source) => baseEmbed(
-  result?.recommendation === 'block' || result?.riskLevel === 'critical' ? E.warning : E.scan,
-  'ACCOUNT INTELLIGENCE RESPONSE',
-  member,
-  [
-    `> ${E.idCard} **Risk score:** \`${Number.isFinite(result?.riskScore) ? `${result.riskScore}/100` : 'N/A'}\``,
-    `> ${E.warning} **Risk level:** \`${safe(result?.riskLevel, 'unknown').toUpperCase()}\``,
-    `> ${E.protected} **Recommendation:** \`${safe(result?.recommendation, 'unknown').toUpperCase()}\``,
-    `> ${E.scan} **Confidence:** \`${safe(result?.confidence, 'unknown').toUpperCase()}\``,
-    `> ${E.server} **Source:** \`${safe(source, 'verification portal', 120)}\``,
-    `> ${E.warning} **Signals:** \`${safe(Array.isArray(result?.reasons) && result.reasons.length ? result.reasons.slice(0, 5).join(', ') : 'No elevated signals')}\``,
-  ],
-  result?.recommendation === 'block' || result?.riskLevel === 'critical' ? 0xff0000 : 0x5865f2,
-);
-
-module.exports.serviceError = (member, stage, error) => baseEmbed(E.warning, 'VERIFICATION ERROR', member, [
-  `> ${E.role} **Stage:** \`${safe(stage, 'unknown', 100)}\``,
-  `> ${E.warning} **Error:** \`${safe(error, 'Unknown error')}\``,
-], 0xff0000);
-
-module.exports.roleUpdateFailed = (member, roleName, error) => baseEmbed(E.role, 'ROLE UPDATE ERROR', member, [
-  `> ${E.role} **Role:** \`${safe(roleName, 'verification role', 100)}\``,
-  `> ${E.warning} **Error:** \`${safe(error, 'Unknown error')}\``,
-], 0xff0000);
