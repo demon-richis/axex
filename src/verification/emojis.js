@@ -24,7 +24,7 @@ const NATIVE = {
   axex_honeypot: "🍯",
   axex_channel: "📁",
   axex_ban: "🔨",
-  axex_invisible: "👻",
+  axex_invisible: "\u200b",
   axex_warning: "⚠️",
   axex_success: "✅",
   axex_anti_raid: "🚨",
@@ -87,6 +87,7 @@ Object.assign(E, {
 });
 
 E.fallback = {
+  invisible: "\u200b",
   creation: "🗓️",
   owner: "👑",
   bot: "🤖",

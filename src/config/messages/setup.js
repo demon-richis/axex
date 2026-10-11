@@ -18,7 +18,7 @@ module.exports.alreadySetup = () =>
   base(
     0xffa500,
     `${E.scan} **__Already Configured__**\n\n` +
-      `Axex is already set up on this server.\n\n` +
+      `${E.invisible} ${E.warning} Axex is already set up on this server.\n\n` +
       `*Reconfigure to reset settings*`,
   );
 
@@ -26,10 +26,9 @@ module.exports.configureRolesPrompt = (token) => ({
   embeds: [
     base(
       0x5865f2,
-      ` **__Axex Setup — Step 1__**\n\n` +
-        `Choose which role(s) your regular members have.\n\n` +
-        `> • Click the button below\n` +
-        `> • Paste role IDs or mentions\n\n` +
+      `${E.creation} **__Axex Setup — Step 1__**\n\n` +
+        `${E.invisible} ${E.reminder} Select the role(s) assigned to regular members.\n\n` +
+        `${E.invisible} ${E.arrow} Click the button below, then paste role IDs or mentions.\n\n` +
         `*Separate multiple roles with commas*`,
     ),
   ],
@@ -94,8 +93,8 @@ module.exports.invalidRoleIds = () =>
   base(
     0xff0000,
     `${E.warning} **__Invalid Member Roles__**\n\n` +
-      `> • Use valid role IDs or @mentions\n` +
-      `> • Separate multiple roles with commas\n\n` +
+      `${E.invisible} ${E.arrow} Use valid role IDs or @mentions\n` +
+      `${E.invisible} ${E.arrow} Separate multiple roles with commas\n\n` +
       `*Example: \`123456789012345678, @member\`*`,
   );
 
@@ -111,9 +110,9 @@ module.exports.roleHierarchyWarn = () =>
   base(
     0xffa500,
     `${E.scan} **__Role Hierarchy Warning__**\n\n` +
-      `Axex bot role is not at the top of the role hierarchy.\n\n` +
-      `> • Axex cannot manage higher roles\n` +
-      `> • Verification may fail silently\n\n` +
+      `${E.invisible} ${E.warning} Axex bot role is not at the top of the role hierarchy.\n\n` +
+      `${E.invisible} ${E.arrow} Axex cannot manage roles above its highest role.\n` +
+      `${E.invisible} ${E.arrow} Verification role changes may fail.\n\n` +
       `*Move Axex role to the top*`,
   );
 

@@ -1,3 +1,13 @@
+const { EmbedBuilder } = require("discord.js");
+const E = require("../../verification/emojis");
+
+function safe(value, fallback = "N/A", limit = 180) {
+  return String(value ?? fallback)
+    .replaceAll("`", "'")
+    .replaceAll("\n", " ")
+    .slice(0, limit);
+}
+
 module.exports.verificationCase = (state) => {
   const final = state.final;
   const action = String(
@@ -33,7 +43,7 @@ module.exports.verificationCase = (state) => {
         : 0x5865f2;
   const member = state.member;
   const lines = [
-    `${statusEmoji} __**VERIFICATION CASE**__`,
+    `${statusEmoji} **__Verification Case__**`,
     "",
     `> ${E.user} **User:** ${member ? `<@${member.id}> \`${safe(member.user?.tag)}\`` : "Unknown"}`,
     `> ${E.idCard} **User ID:** \`${safe(member?.id)}\``,
@@ -86,10 +96,5 @@ module.exports.verificationCase = (state) => {
   return new EmbedBuilder()
     .setColor(color)
     .setDescription(lines.join("\n"))
-    .setFooter({
-      text: state.eventId
-        ? `Event: ${safe(state.eventId, "N/A", 80)}`
-        : "Axex verification audit",
-    })
     .setTimestamp();
 };
