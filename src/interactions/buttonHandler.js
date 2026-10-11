@@ -1,19 +1,20 @@
-const { MessageFlags } = require('discord.js');
-const { getGuildConfig } = require('../db/client');
-const E = require('../verification/emojis');
-const { handleVerifyStart } = require('../verification/verifySystem');
-const { handleSetupButton } = require('../commands/vsetup');
-const embeds = require('../config/messages');
+const { MessageFlags } = require("discord.js");
+const { getGuildConfig } = require("../db/client");
+const E = require("../verification/emojis");
+const { handleVerifyStart } = require("../verification/verifySystem");
+const { handleSetupButton } = require("../commands/vsetup");
+const embeds = require("../config/messages");
 
 async function execute(interaction) {
-  if (!interaction.isButton() || !interaction.customId.startsWith('axex_')) return;
+  if (!interaction.isButton() || !interaction.customId.startsWith("axex_"))
+    return;
 
-  if (interaction.customId.startsWith('axex_setup_')) {
+  if (interaction.customId.startsWith("axex_setup_")) {
     await handleSetupButton(interaction);
     return;
   }
 
-  if (interaction.customId === 'axex_help') {
+  if (interaction.customId === "axex_help") {
     await interaction.reply({
       content: `${E.help} Follow the verification link, sign in with Discord, complete the short challenge, and return here. If you are on cooldown, wait until the displayed retry time before trying again.`,
       flags: MessageFlags.Ephemeral,
@@ -21,7 +22,7 @@ async function execute(interaction) {
     return;
   }
 
-  if (interaction.customId === 'axex_verify_start') {
+  if (interaction.customId === "axex_verify_start") {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     if (!interaction.guild) {
@@ -35,21 +36,29 @@ async function execute(interaction) {
       return;
     }
 
-    await handleVerifyStart(interaction, config);
+    await interaction.editReply({
+      content: `${E.loading} Preparing your verification link...`,
+    });
+    await handleVerifyStart(interaction, config, { prechecked: true });
     return;
   }
 
   if (!interaction.guild) {
-    await interaction.reply({ embeds: [embeds.replies.guildOnly()], flags: MessageFlags.Ephemeral });
+    await interaction.reply({
+      embeds: [embeds.replies.guildOnly()],
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
 
   const config = await getGuildConfig(interaction.guild.id);
   if (!config?.setup_done) {
-    await interaction.reply({ embeds: [embeds.replies.notConfigured()], flags: MessageFlags.Ephemeral });
+    await interaction.reply({
+      embeds: [embeds.replies.notConfigured()],
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
-
 }
 
 module.exports = { execute };

@@ -133,7 +133,7 @@ async function quarantineUser(member, config, reason, options = {}) {
   });
 }
 
-async function handleVerifyStart(interaction, config) {
+async function handleVerifyStart(interaction, config, options = {}) {
   const member = interaction.member;
   const E = require("./emojis");
   const {
@@ -143,7 +143,9 @@ async function handleVerifyStart(interaction, config) {
     ButtonStyle,
   } = require("discord.js");
 
-  const check = await runPreChecks(member);
+  const check = options.prechecked
+    ? { skip: false, config }
+    : await runPreChecks(member);
   if (check.skip) {
     if (check.reason === "BOT") return;
     if (check.reason === "OWNER") {
@@ -293,7 +295,7 @@ async function handleVerifyStart(interaction, config) {
 
   const verifyURL = websiteUrl(`/verify?token=${encodeURIComponent(token)}`);
   console.log("[Verify] Sending link to", member.id, ":", verifyURL);
-  const linkEvent = await logVerificationEvent({
+  void logVerificationEvent({
     referenceId,
     guildId: member.guild.id,
     userId: member.id,
