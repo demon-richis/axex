@@ -50,21 +50,9 @@ function scheduleRaidClear(guild) {
   raidClearTimers.set(guild.id, timer);
 }
 
-async function execute(member) {
+async function processJoinAfterRole(member, config) {
   const { guild } = member;
-  const check = await runPreChecks(member);
-  if (check.skip) {
-    if (check.reason === "OWNER") {
-      const config = await getGuildConfig(guild.id).catch(() => null);
-      if (config?.verified_role_id)
-        await member.roles.add(config.verified_role_id).catch(() => {});
-    }
-    return;
-  }
-  const config = check.config;
-
   let intelligenceResult = null;
-  let riskScore = null;
   try {
     const intel = await analyzeUser(member);
     if (intel) {
@@ -73,11 +61,12 @@ async function execute(member) {
       );
     }
     intelligenceResult = intel;
-    riskScore =
-      typeof intelligenceResult?.riskScore === "number"
-        ? intelligenceResult.riskScore
-        : null;
-  } catch {}
+  } catch (error) {
+    console.warn(
+      `[Axex Intelligence] background analysis failed for ${member.id}:`,
+      error.message,
+    );
+  }
 
   if (
     intelligenceResult?.recommendation === "block" ||
@@ -115,7 +104,6 @@ async function execute(member) {
       reason: "AUTO_EXPIRED",
     });
   }
-
   const raidThreshold = config.raid_threshold || 10;
   const raidDetected = recordJoin(guild.id, raidThreshold);
   if (raidDetected && !state.raid_mode) {
@@ -132,21 +120,45 @@ async function execute(member) {
     });
   }
   scheduleRaidClear(guild);
+}
 
+async function execute(member) {
+  const { guild } = member;
+  const check = await runPreChecks(member);
+  if (check.skip) {
+    if (check.reason === "OWNER") {
+      const config = await getGuildConfig(guild.id).catch(() => null);
+      if (config?.verified_role_id)
+        await member.roles.add(config.verified_role_id).catch(() => {});
+    }
+    return;
+  }
+  const config = check.config;
+
+  // Critical path: assign access-control role immediately after Discord emits the join.
   await member.roles.add(config.unverified_role_id).catch((error) => {
     console.error(
       `Could not add Unverified role to ${guild.id}/${member.id}:`,
       error.message,
     );
   });
-
   const verifyChannel = guild.channels.cache.get(config.verify_channel_id);
   if (verifyChannel) {
-    const ping = await verifyChannel
+    void verifyChannel
       .send(messages.memberChecks.joinPing(member.id))
-      .catch(() => null);
-    if (ping) setTimeout(() => ping.delete().catch(() => {}), 8_000);
+      .then((ping) => {
+        if (ping) setTimeout(() => ping.delete().catch(() => {}), 8_000);
+      })
+      .catch(() => {});
   }
+
+  // Intelligence, raid detection, and audit writes must never delay role assignment.
+  void processJoinAfterRole(member, config).catch((error) => {
+    console.error(
+      `Background join processing failed for ${guild.id}/${member.id}:`,
+      error,
+    );
+  });
 }
 
 module.exports = { execute };

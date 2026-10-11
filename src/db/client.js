@@ -6,6 +6,8 @@ const crypto = require("crypto");
 const { neon } = require("@neondatabase/serverless");
 
 let sql = null;
+const guildConfigCache = new Map();
+const GUILD_CONFIG_CACHE_MS = 30_000;
 
 function getSql() {
   if (!process.env.DATABASE_URL) {
@@ -37,10 +39,17 @@ async function initDB() {
 }
 
 async function getGuildConfig(guildId) {
+  const cached = guildConfigCache.get(guildId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
   try {
     const rows =
       await getSql()`SELECT * FROM guild_config WHERE guild_id = ${guildId}`;
-    return rows[0] || null;
+    const value = rows[0] || null;
+    guildConfigCache.set(guildId, {
+      value,
+      expiresAt: Date.now() + GUILD_CONFIG_CACHE_MS,
+    });
+    return value;
   } catch (error) {
     console.error(
       `Could not load configuration for guild ${guildId}:`,
@@ -89,6 +98,7 @@ async function saveGuildConfig(config) {
         webhook_url            = EXCLUDED.webhook_url,
         setup_done             = true
     `;
+    guildConfigCache.delete(config.guildId);
     return true;
   } catch (error) {
     console.error(
