@@ -137,10 +137,3 @@ module.exports.attemptsExhausted = (attempts, reason) => reply(
     `${E.invisible} ${E.arrow} **Reason:** ${String(reason || "Verification failed").replaceAll("_", " ")}\n\n` +
     `${E.invisible} ${E.quarantine} Your account has been quarantined. Contact a server moderator for help.`,
 );
-
-module.exports.genericError = () => reply(
-  0xEF4444,
-  `${E.failed} **__Something Went Wrong__**`,
-  `${E.invisible} ${E.warning} Axex could not complete this action.\n` +
-    `${E.invisible} ${E.arrow} Please try again or contact a server administrator.`,
-);
