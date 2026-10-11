@@ -19,7 +19,7 @@ module.exports.alreadySetup = () =>
     0xffa500,
     `${E.scan} **__Already Configured__**\n\n` +
       `Axex is already set up on this server.\n\n` +
-      `-# Reconfigure to reset settings`,
+      `*Reconfigure to reset settings*`,
   );
 
 module.exports.configureRolesPrompt = (token) => ({
@@ -30,7 +30,7 @@ module.exports.configureRolesPrompt = (token) => ({
         `Choose which role(s) your regular members have.\n\n` +
         `> • Click the button below\n` +
         `> • Paste role IDs or mentions\n\n` +
-        `-# Separate multiple roles with commas`,
+        `*Separate multiple roles with commas*`,
     ),
   ],
   components: [
@@ -96,7 +96,7 @@ module.exports.invalidRoleIds = () =>
     `${E.warning} **__Invalid Member Roles__**\n\n` +
       `> • Use valid role IDs or @mentions\n` +
       `> • Separate multiple roles with commas\n\n` +
-      `-# Example: \`123456789012345678, @member\``,
+      `*Example: \`123456789012345678, @member\`*`,
   );
 
 module.exports.saveRolesFailed = () =>
@@ -104,7 +104,7 @@ module.exports.saveRolesFailed = () =>
     0xff0000,
     `${E.failed} **__Roles Not Saved__**\n\n` +
       `Could not save roles to the database.\n\n` +
-      `-# Check bot permissions and try again`,
+      `*Check bot permissions and try again*`,
   );
 
 module.exports.roleHierarchyWarn = () =>
@@ -114,7 +114,7 @@ module.exports.roleHierarchyWarn = () =>
       `Axex bot role is not at the top of the role hierarchy.\n\n` +
       `> • Axex cannot manage higher roles\n` +
       `> • Verification may fail silently\n\n` +
-      `-# Move Axex role to the top`,
+      `*Move Axex role to the top*`,
   );
 
 module.exports.cancelled = () =>
@@ -122,7 +122,7 @@ module.exports.cancelled = () =>
     0x888888,
     `${E.failed} **__Setup Cancelled__**\n\n` +
       `No Axex roles or channels were changed.\n\n` +
-      `-# Run \`/vsetup\` to restart`,
+      `*Run \`/vsetup\` to restart*`,
   );
 
 module.exports.confirmationExpired = () =>
@@ -130,7 +130,7 @@ module.exports.confirmationExpired = () =>
     0x888888,
     `${E.failed} **__Confirmation Expired__**\n\n` +
       `This setup session has timed out.\n\n` +
-      `-# Run \`/vsetup\` again`,
+      `*Run \`/vsetup\` again*`,
   );
 
 module.exports.notSetupOwner = () =>
@@ -138,7 +138,7 @@ module.exports.notSetupOwner = () =>
     0xff0000,
     `${E.warning} **__Not Your Setup__**\n\n` +
       `Only the administrator who started setup can use these buttons.\n\n` +
-      `-# Ask them to continue`,
+      `*Ask them to continue*`,
   );
 
 module.exports.permissionDenied = () =>
@@ -146,7 +146,7 @@ module.exports.permissionDenied = () =>
     0xff0000,
     `${E.protected} **__Permission Required__**\n\n` +
       `You need **Manage Server** to run \`/vsetup\`.\n\n` +
-      `-# Ask an admin for access`,
+      `*Ask an admin for access*`,
   );
 
 module.exports.guildOnly = () =>
@@ -154,7 +154,7 @@ module.exports.guildOnly = () =>
     0xff0000,
     `${E.warning} **__Server Only__**\n\n` +
       `Axex setup can only run inside a server.\n\n` +
-      `-# Use it in a guild channel`,
+      `*Use it in a guild channel*`,
   );
 
 module.exports.commandUnavailable = () =>
@@ -162,7 +162,7 @@ module.exports.commandUnavailable = () =>
     0x888888,
     `${E.warning} **__Command Unavailable__**\n\n` +
       `That Axex command is not available.\n\n` +
-      `-# Check \`/help\` for commands`,
+      `*Check \`/help\` for commands*`,
   );
 
 module.exports.existingResources = (resources) =>
@@ -172,7 +172,7 @@ module.exports.existingResources = (resources) =>
       `Existing Axex resources were detected.\n\n` +
       `> • Roles: ${resources.roles.length ? resources.roles.map((role) => `**${role.name}**`).join(", ") : "None"}\n` +
       `> • Channels: ${resources.channels.length ? resources.channels.map((channel) => `<#${channel.id}>`).join(", ") : "None"}\n\n` +
-      `-# Choose how to handle them below`,
+      `*Choose how to handle them below*`,
   );
 
 module.exports.failure = (completed, failed) =>
@@ -182,7 +182,7 @@ module.exports.failure = (completed, failed) =>
       `Setup stopped before Axex could be safely enabled.\n\n` +
       `> • Completed: ${completed?.join(", ").slice(0, 1024) || "Nothing"}\n` +
       `> • Failed: ${failed?.join(", ").slice(0, 1024) || "Unknown error"}\n\n` +
-      `-# Check hierarchy and bot permissions`,
+      `*Check hierarchy and bot permissions*`,
   );
 
 module.exports.serverReady = () =>
@@ -236,6 +236,6 @@ module.exports.success = ({
       `> ${E.invisible} **Restricted channels:** \`${channelsUpdated}\` • ${E.timeout} **Timeout:** \`${settings.timeout ?? 60}s\` • ${E.newAccount} **Min Age:** \`${settings.minAge ?? 7}d\`\n` +
       `> ${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` • ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} • ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}\n` +
       (hierarchyOk
-        ? `-# Setup completed successfully`
-        : `-# Warning: Move Axex role to top of hierarchy`),
+        ? `*Setup completed successfully*`
+        : `*Warning: Move Axex role to top of hierarchy*`),
   );
