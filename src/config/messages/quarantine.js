@@ -29,7 +29,7 @@ module.exports.activeCases = (cases) =>
                 `${E.invisible} ${E.reminder} <t:${Math.floor(new Date(item.created_at).getTime() / 1000)}:R>`,
             )
             .join("\n\n")
-        : `${E.invisible} ${E.success} No active quarantine cases.`,
+        : `${E.invisible} ${E.success} No active quarantine cases.`
       ),
     )
     .setTimestamp();
