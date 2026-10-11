@@ -88,7 +88,6 @@ const commands = [
         required: false,
         choices: [
           { name: "flag", value: "flag" },
-          { name: "queue", value: "queue" },
           { name: "quarantine", value: "quarantine" },
         ],
       },
@@ -121,34 +120,34 @@ const commands = [
     ],
   },
   {
-    name: "queue",
-    description: "Manage the verification approval queue",
+    name: "quarantine",
+    description: "Manage quarantined members and cases",
     default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
     dm_permission: false,
     options: [
-      { name: "list", type: 1, description: "View pending queue" },
+      { name: "list", type: 1, description: "List active quarantine cases" },
       {
-        name: "approve",
+        name: "inspect",
         type: 1,
-        description: "Approve a user",
+        description: "Inspect a member's quarantine case",
         options: [
           {
             name: "user",
             type: 6,
-            description: "User to approve",
+            description: "Member to inspect",
             required: true,
           },
         ],
       },
       {
-        name: "reject",
+        name: "release",
         type: 1,
-        description: "Reject a user",
+        description: "Release a member and require verification again",
         options: [
           {
             name: "user",
             type: 6,
-            description: "User to reject",
+            description: "Member to release",
             required: true,
           },
         ],

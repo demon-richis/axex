@@ -8,6 +8,7 @@ let server;
 let discordClient;
 let retryTimer;
 const webhookBuckets = new Map();
+const verificationBuckets = new Map();
 
 async function processRoleUpdateRetries() {
   if (!discordClient?.isReady()) return;
@@ -208,6 +209,32 @@ app.post("/webhook/verify-result", async (req, res) => {
     });
   }
 
+  const verificationKey = `${normalizedGuildId}:${normalizedUserId}`;
+  const now = Date.now();
+  const currentVerification = verificationBuckets.get(verificationKey);
+  const verificationBucket =
+    !currentVerification || now - currentVerification.startedAt >= 600_000
+      ? { startedAt: now, count: 0 }
+      : currentVerification;
+  verificationBucket.count += 1;
+  verificationBuckets.set(verificationKey, verificationBucket);
+  if (verificationBuckets.size > 20_000) {
+    for (const [key, value] of verificationBuckets) {
+      if (now - value.startedAt > 1_200_000) verificationBuckets.delete(key);
+    }
+  }
+  if (verificationBucket.count > 10) {
+    return res.status(429).json({
+      received: false,
+      error: "Verification activity limit exceeded",
+      code: "USER_VERIFICATION_RATE_LIMIT",
+      retryAfterSeconds: Math.ceil(
+        (600_000 - (now - verificationBucket.startedAt)) / 1000,
+      ),
+      referenceId: normalizedReferenceId,
+    });
+  }
+
   try {
     if (!discordClient) {
       console.error("[WebhookReceiver] Discord client is not initialized");
@@ -277,83 +304,53 @@ app.post("/webhook/verify-result", async (req, res) => {
         : flagReason || failureReason || "VERIFICATION_FAILED";
       const terminal = Boolean(vpnDetected || locked || (attempts ?? 0) >= 3);
 
-      if (terminal) {
-        await quarantineUser(member, config, reason, {
-          state,
-          action: vpnDetected ? "VPN BLOCKED" : "VERIFICATION LOCKED",
-          dbAction: vpnDetected ? "VPN_BLOCKED" : "VERIFICATION_LOCKED",
-          color: vpnDetected ? 0x9b59b6 : 0xff0000,
-          ipFlagged: vpnDetected,
-          accountAge: accountAgeDays,
-          clickMs,
-          logType: vpnDetected ? "vpnDetected" : "locked",
-          referenceId: normalizedReferenceId,
-        });
-        await member
-          .send({
-            embeds: [embeds.replies.verificationLocked(attempts ?? 3, reason)],
-          })
-          .catch(() => {});
-      } else {
-        await member.roles.remove(config.quarantined_role_id).catch((error) => {
-          void sendLiveUpdate(member.guild, {
-            logType: "roleUpdateFailed",
-            member,
-            referenceId,
-            roleName: "quarantined",
-            error: error.message,
-          });
-        });
-        await member.roles.add(config.unverified_role_id).catch((error) => {
-          void sendLiveUpdate(member.guild, {
-            logType: "roleUpdateFailed",
-            member,
-            referenceId,
-            roleName: "unverified",
-            error: error.message,
-          });
-        });
-        await recordAction(member, state, {
-          action: "VERIFICATION FAILED",
-          dbAction: "VERIFICATION_FAILED",
-          color: 0xff6600,
+      await quarantineUser(member, config, reason, {
+        state,
+        action: vpnDetected
+          ? "VPN BLOCKED"
+          : terminal
+            ? "VERIFICATION LOCKED"
+            : "VERIFICATION FAILED",
+        dbAction: vpnDetected
+          ? "VPN_BLOCKED"
+          : terminal
+            ? "VERIFICATION_LOCKED"
+            : "VERIFICATION_FAILED",
+        color: vpnDetected ? 0x9b59b6 : 0xff0000,
+        ipFlagged: vpnDetected,
+        accountAge: accountAgeDays(member),
+        clickMs,
+        logType: vpnDetected
+          ? "vpnDetected"
+          : terminal
+            ? "locked"
+            : "wrongAnswer",
+        referenceId: normalizedReferenceId,
+      });
+      await member
+        .send({
+          embeds: [
+            terminal
+              ? embeds.replies.verificationLocked(attempts ?? 3, reason)
+              : embeds.replies.verificationFailed(
+                  reason,
+                  attempts ?? 1,
+                  cooldownUntil,
+                ),
+          ],
+        })
+        .catch(() => {});
+      await recordEvent(normalizedUserId, normalizedGuildId, "VERIFY_FAIL", {
+        clickMs,
+        metadata: {
           reason,
-          clickMs,
-          accountAge: accountAgeDays,
-          extra: cooldownUntil
-            ? `Retry available: ${new Date(cooldownUntil).toLocaleString()}`
-            : undefined,
-          ipFlagged: vpnDetected,
-          logType:
-            failureReason === "TIMEOUT"
-              ? "timedOut"
-              : failureReason === "BOT_DETECTED"
-                ? "botDetected"
-                : "wrongAnswer",
-          referenceId: normalizedReferenceId,
-        });
-        await member
-          .send({
-            embeds: [
-              embeds.replies.verificationFailed(
-                reason,
-                attempts ?? 1,
-                cooldownUntil,
-              ),
-            ],
-          })
-          .catch(() => {});
-        await recordEvent(normalizedUserId, normalizedGuildId, "VERIFY_FAIL", {
-          clickMs,
-          metadata: {
-            reason,
-            vpnDetected: Boolean(vpnDetected),
-            attempts: attempts ?? 1,
-            terminal,
-            referenceId,
-          },
-        });
-      }
+          vpnDetected: Boolean(vpnDetected),
+          attempts: attempts ?? 1,
+          terminal,
+          quarantined: true,
+          referenceId,
+        },
+      });
       return res.json({ received: true, passed: false, terminal });
     }
 

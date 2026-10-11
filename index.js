@@ -1,20 +1,31 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const { Client, GatewayIntentBits } = require('discord.js');
-const { initDB } = require('./src/db/client');
-const { syncAllGuilds } = require('./src/utils/syncGuilds');
-const memberAdd = require('./src/events/guildMemberAdd');
-const buttonHandler = require('./src/interactions/buttonHandler');
-const commandHandler = require('./src/interactions/commandHandler');
-const modalHandler = require('./src/interactions/modalHandler');
+const { Client, GatewayIntentBits } = require("discord.js");
+const { initDB } = require("./src/db/client");
+const { syncAllGuilds } = require("./src/utils/syncGuilds");
+const memberAdd = require("./src/events/guildMemberAdd");
+const buttonHandler = require("./src/interactions/buttonHandler");
+const commandHandler = require("./src/interactions/commandHandler");
+const modalHandler = require("./src/interactions/modalHandler");
 
 if (!process.env.BOT_TOKEN) {
-  console.error('BOT_TOKEN is missing. Copy .env.example to .env and fill it in.');
+  console.error(
+    "BOT_TOKEN is missing. Copy .env.example to .env and fill it in.",
+  );
   process.exit(1);
 }
 
-for (const name of ['AXEX_BOT_API_KEY', 'WEBSITE_API_KEY', 'WEBSITE_URL', 'INTELLIGENCE_URL', 'INTELLIGENCE_API_KEY']) {
-  if (!process.env[name]) console.warn(`[Axex] ${name} is not configured; related integrations may be unavailable`);
+for (const name of [
+  "AXEX_BOT_API_KEY",
+  "WEBSITE_API_KEY",
+  "WEBSITE_URL",
+  "INTELLIGENCE_URL",
+  "INTELLIGENCE_API_KEY",
+]) {
+  if (!process.env[name])
+    console.warn(
+      `[Axex] ${name} is not configured; related integrations may be unavailable`,
+    );
 }
 
 const client = new Client({
@@ -22,41 +33,48 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
-client.on('guildMemberAdd', (member) => {
+client.on("guildMemberAdd", (member) => {
   memberAdd.execute(member, client).catch((error) => {
-    console.error(`guildMemberAdd failed for ${member.guild.id}/${member.id}:`, error);
+    console.error(
+      `guildMemberAdd failed for ${member.guild.id}/${member.id}:`,
+      error,
+    );
   });
 });
 
-client.on('interactionCreate', (interaction) => {
+client.on("interactionCreate", (interaction) => {
   if (interaction.isButton()) {
     buttonHandler.execute(interaction, client).catch((error) => {
-      console.error('Button interaction failed:', error);
+      console.error("Button interaction failed:", error);
     });
   }
 
   if (interaction.isModalSubmit()) {
     modalHandler.execute(interaction, client).catch((error) => {
-      console.error('Modal interaction failed:', error);
+      console.error("Modal interaction failed:", error);
     });
   }
 
   if (interaction.isChatInputCommand()) {
     commandHandler.execute(interaction, client).catch((error) => {
-      console.error('Command interaction failed:', error);
+      console.error("Command interaction failed:", error);
     });
   }
 });
 
-client.once('ready', async () => {
+client.once("ready", async () => {
   await initDB();
   await syncAllGuilds(client);
-  const { startWebhookReceiver } = require('./src/utils/webhookReceiver');
+  const { startWebhookReceiver } = require("./src/utils/webhookReceiver");
+  const {
+    startIntelligenceKeepAlive,
+  } = require("./src/utils/intelligenceKeepAlive");
   startWebhookReceiver(client);
+  startIntelligenceKeepAlive();
   console.log(`Axex online — ${client.user.tag}`);
   console.log(`Serving ${client.guilds.cache.size} server(s)`);
 });

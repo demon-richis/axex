@@ -1,7 +1,7 @@
 const { MessageFlags } = require("discord.js");
 const vsetup = require("../commands/vsetup");
 const eventmode = require("../commands/eventmode");
-const queue = require("../commands/queue");
+const quarantine = require("../commands/quarantine");
 const verificationLog = require("../commands/verificationLog");
 const axex = require("../commands/axex");
 const embeds = require("../config/messages");
@@ -9,7 +9,7 @@ const embeds = require("../config/messages");
 const commands = {
   vsetup,
   eventmode,
-  queue,
+  quarantine,
   axex,
   "verification-log": verificationLog,
 };
