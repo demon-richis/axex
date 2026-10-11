@@ -277,49 +277,88 @@ async function failRoleUpdateRetry(id, error, attemptCount) {
   }
 }
 
-async function addToQueue(data) {
+async function createQuarantineCase(data) {
   try {
-    await getSql()`
-      INSERT INTO quarantine_queue (guild_id, user_id, username, reason, click_ms, account_age)
-      VALUES (${data.guildId}, ${data.userId}, ${data.username}, ${data.reason}, ${data.clickMs ?? null}, ${data.accountAge ?? null})
+    const existing = await getSql()`
+      SELECT id FROM quarantine_cases
+      WHERE guild_id = ${data.guildId} AND user_id = ${data.userId} AND status = 'active'
+      ORDER BY created_at DESC LIMIT 1
     `;
-    return true;
+    if (existing[0]?.id) {
+      await getSql()`
+        UPDATE quarantine_cases SET reason = ${data.reason}, reference_id = ${data.referenceId ?? null},
+          click_ms = ${data.clickMs ?? null}, account_age = ${data.accountAge ?? null}, updated_at = NOW()
+        WHERE id = ${existing[0].id}
+      `;
+      return existing[0].id;
+    }
+    const rows = await getSql()`
+      INSERT INTO quarantine_cases
+        (guild_id, user_id, username, reference_id, reason, click_ms, account_age)
+      VALUES
+        (${data.guildId}, ${data.userId}, ${data.username}, ${data.referenceId ?? null}, ${data.reason},
+         ${data.clickMs ?? null}, ${data.accountAge ?? null})
+      RETURNING id
+    `;
+    return rows[0]?.id ?? null;
   } catch (error) {
     console.error(
-      `Could not add queue entry for guild ${data.guildId}:`,
+      `Could not create quarantine case for ${data.guildId}/${data.userId}:`,
       error.message,
     );
-    return false;
+    return null;
   }
 }
 
-async function updateQueue(id, status, handledBy) {
+async function getQuarantineCases(guildId, status = "active") {
+  try {
+    return await getSql()`
+      SELECT * FROM quarantine_cases
+      WHERE guild_id = ${guildId} AND status = ${status}
+      ORDER BY created_at DESC LIMIT 100
+    `;
+  } catch (error) {
+    console.error(
+      `Could not load quarantine cases for guild ${guildId}:`,
+      error.message,
+    );
+    return [];
+  }
+}
+
+async function getQuarantineCase(guildId, userId) {
+  try {
+    const rows = await getSql()`
+      SELECT * FROM quarantine_cases
+      WHERE guild_id = ${guildId} AND user_id = ${userId} AND status = 'active'
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    return rows[0] || null;
+  } catch (error) {
+    console.error(
+      `Could not load quarantine case for ${guildId}/${userId}:`,
+      error.message,
+    );
+    return null;
+  }
+}
+
+async function resolveQuarantineCase(
+  id,
+  moderatorId,
+  status = "released",
+  note = null,
+) {
   try {
     await getSql()`
-      UPDATE quarantine_queue
-      SET status = ${status}, handled_by = ${handledBy}
+      UPDATE quarantine_cases
+      SET status = ${status}, moderator_id = ${moderatorId}, moderator_note = ${note}, updated_at = NOW()
       WHERE id = ${id}
     `;
     return true;
   } catch (error) {
-    console.error(`Could not update queue entry ${id}:`, error.message);
+    console.error(`Could not resolve quarantine case ${id}:`, error.message);
     return false;
-  }
-}
-
-async function getQueue(guildId) {
-  try {
-    return await getSql()`
-      SELECT * FROM quarantine_queue
-      WHERE guild_id = ${guildId} AND status = 'pending'
-      ORDER BY created_at DESC
-    `;
-  } catch (error) {
-    console.error(
-      `Could not load approval queue for guild ${guildId}:`,
-      error.message,
-    );
-    return [];
   }
 }
 
@@ -380,9 +419,10 @@ module.exports = {
   getPendingRoleUpdateRetries,
   completeRoleUpdateRetry,
   failRoleUpdateRetry,
-  addToQueue,
-  updateQueue,
-  getQueue,
+  createQuarantineCase,
+  getQuarantineCases,
+  getQuarantineCase,
+  resolveQuarantineCase,
   getGuildState,
   setGuildState,
 };

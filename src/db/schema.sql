@@ -102,18 +102,27 @@ CREATE TABLE IF NOT EXISTS role_update_retries (
 CREATE INDEX IF NOT EXISTS role_update_retries_pending_idx
   ON role_update_retries (status, next_attempt_at);
 
-CREATE TABLE IF NOT EXISTS quarantine_queue (
-  id           SERIAL PRIMARY KEY,
-  guild_id     TEXT NOT NULL,
-  user_id      TEXT NOT NULL,
-  username     TEXT NOT NULL,
-  reason       TEXT NOT NULL,
-  click_ms     INTEGER,
-  account_age  INTEGER,
-  status       TEXT DEFAULT 'pending',
-  handled_by   TEXT,
-  created_at   TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS quarantine_cases (
+  id             SERIAL PRIMARY KEY,
+  guild_id       TEXT NOT NULL,
+  user_id        TEXT NOT NULL,
+  username       TEXT NOT NULL,
+  reference_id   TEXT,
+  reason         TEXT NOT NULL,
+  click_ms       INTEGER,
+  account_age    INTEGER,
+  status         TEXT DEFAULT 'active' NOT NULL,
+  moderator_id   TEXT,
+  moderator_note TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS quarantine_cases_active_idx
+  ON quarantine_cases (guild_id, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS quarantine_cases_user_idx
+  ON quarantine_cases (guild_id, user_id, status);
 
 CREATE TABLE IF NOT EXISTS guild_state (
   guild_id        TEXT PRIMARY KEY,
