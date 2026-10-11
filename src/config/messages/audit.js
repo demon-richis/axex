@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
+const E = require("../../verification/emojis");
 
 function safe(value, fallback = "N/A", limit = 500) {
   return String(value ?? fallback)
@@ -49,41 +50,37 @@ function summary(data) {
         ? 0x57f287
         : 0xffa500,
     )
-    .setTitle(
-      referenceId
-        ? `Verification Case ${referenceId}`
-        : "Verification Audit Search",
-    )
     .setDescription(
-      "**Complete verification audit**\n\nThis report contains every recorded event matching the selected filters.",
+      `${E.logs} **__${referenceId ? `Verification Case ${referenceId}` : "Verification Audit Search"}__**\n\n` +
+        `${E.invisible} Complete audit history for the selected case or filters.`,
     )
     .addFields(
       {
-        name: "Member",
+        name: `${E.user} Member`,
         value: `<@${safe(first.user_id)}> \`${safe(first.username)}\``,
         inline: true,
       },
-      { name: "User ID", value: `\`${safe(first.user_id)}\``, inline: true },
-      { name: "Guild ID", value: `\`${safe(first.guild_id)}\``, inline: true },
-      { name: "Final action", value: `\`${safe(last.action)}\``, inline: true },
-      { name: "Total events", value: `\`${events.length}\``, inline: true },
+      { name: `${E.idCard} User ID`, value: `\`${safe(first.user_id)}\``, inline: true },
+      { name: `${E.server} Server ID`, value: `\`${safe(first.guild_id)}\``, inline: true },
+      { name: `${E.logs} Final Action`, value: `\`${safe(last.action)}\``, inline: true },
+      { name: `${E.scan} Total Events`, value: `\`${events.length}\``, inline: true },
       {
-        name: "Flagged events",
+        name: `${E.warning} Flagged Events`,
         value: `\`${flaggedEvents.length}\``,
         inline: true,
       },
       {
-        name: "First recorded",
+        name: `${E.creation} First Recorded`,
         value: timestamp(first.created_at, "F"),
         inline: true,
       },
       {
-        name: "Last recorded",
+        name: `${E.reminder} Last Recorded`,
         value: timestamp(last.created_at, "F"),
         inline: true,
       },
       {
-        name: "Response times",
+        name: `${E.timeout} Response Times`,
         value:
           minResponse === null
             ? "No response timing recorded"
@@ -91,17 +88,16 @@ function summary(data) {
         inline: true,
       },
       {
-        name: "Actions observed",
+        name: `${E.arrow} Actions Observed`,
         value: safe(actions.join(", "), "None", 1024),
         inline: false,
       },
       {
-        name: "Reasons observed",
+        name: `${E.warning} Reasons Observed`,
         value: safe(reasons.join(" • "), "None", 1024),
         inline: false,
       },
     )
-    .setFooter({ text: "Axex deep verification audit" })
     .setTimestamp();
 }
 
@@ -109,20 +105,16 @@ function details(events, referenceId) {
   return chunk(events, 12).map((eventChunk, index) =>
     new EmbedBuilder()
       .setColor(0x676669)
-      .setTitle(
-        `Verification Details ${index + 1}/${Math.ceil(events.length / 12)}`,
-      )
       .setDescription(
+        `${E.logs} **__Verification Details ${index + 1}/${Math.ceil(events.length / 12)}__**\n\n` +
         eventChunk
           .map((event, offset) => {
             const eventNumber = index * 12 + offset + 1;
-            return `### ${eventNumber}. ${safe(event.action)} ${timestamp(event.created_at, "R")}\n${eventDetails(event)}`;
+            return `${E.invisible} ${E.logs} **__${eventNumber}. ${safe(event.action)}__** ${timestamp(event.created_at, "R")}\n${eventDetails(event)}`;
           })
           .join("\n\n"),
       )
-      .setFooter({
-        text: `${referenceId ? `Case ${referenceId}` : "Filtered audit"} • All recorded event details`,
-      }),
+      ,
   );
 }
 

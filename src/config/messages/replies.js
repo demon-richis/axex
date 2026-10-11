@@ -49,17 +49,14 @@ module.exports.verificationFailed = (reason, attempts, cooldownUntil) => reply(
 module.exports.verificationLocked = (attempts, reason) => reply(
   0xEF4444,
   `${E.protected} **__Verification Locked__**`,
-  `${E.failed} You have used **${attempts}/3 attempts**.\n` +
+  `${E.invisible} ${E.failed} You have used **${attempts}/3 attempts**.\n` +
     `${E.invisible} ${E.arrow} **Reason:** ${String(reason).replaceAll('_', ' ')}\n\n` +
     `${E.invisible} ${E.invisible} ${E.quarantine} Your account is quarantined. Contact a server moderator for help.`,
 );
 
 module.exports.retryCooldown = (attempts, cooldownUntil, reason) => reply(
   0xF59E0B,
-  `${E.cooldown} 
-  
-  
-  **__Verification Paused__**`,
+  `${E.cooldown} **__Verification Paused__**`,
   `${E.invisible} ${E.warning} **Reason:** ${String(reason || 'Verification failed').replaceAll('_', ' ')}\n` +
     `${E.invisible} Attempts used: **${attempts}/3**\n\n` +
     `${E.invisible} ${E.invisible} ${E.reminder} Try again <t:${Math.floor(new Date(cooldownUntil).getTime() / 1000)}:R>.`,
@@ -131,4 +128,19 @@ module.exports.sessionAlreadyActive = () => reply(
   0xF59E0B,
   `${E.cooldown} **__Verification In Progress__**`,
   `${E.invisible} ${E.arrow} Finish your current verification session before requesting another link.`,
+);
+
+module.exports.attemptsExhausted = (attempts, reason) => reply(
+  0x7F1D1D,
+  `${E.protected} **__Verification Attempts Exhausted__**`,
+  `${E.invisible} ${E.failed} You have used all **${attempts}/3 attempts**.\n` +
+    `${E.invisible} ${E.arrow} **Reason:** ${String(reason || "Verification failed").replaceAll("_", " ")}\n\n` +
+    `${E.invisible} ${E.quarantine} Your account has been quarantined. Contact a server moderator for help.`,
+);
+
+module.exports.genericError = () => reply(
+  0xEF4444,
+  `${E.failed} **__Something Went Wrong__**`,
+  `${E.invisible} ${E.warning} Axex could not complete this action.\n` +
+    `${E.invisible} ${E.arrow} Please try again or contact a server administrator.`,
 );
