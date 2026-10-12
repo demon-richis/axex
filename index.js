@@ -47,7 +47,7 @@ client.on("guildMemberAdd", (member) => {
 });
 
 client.on("interactionCreate", (interaction) => {
-  if (interaction.isButton()) {
+  if (interaction.isButton() || interaction.isStringSelectMenu()) {
     buttonHandler.execute(interaction, client).catch((error) => {
       console.error("Button interaction failed:", error);
     });

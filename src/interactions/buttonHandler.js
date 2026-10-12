@@ -1,10 +1,18 @@
 const { MessageFlags } = require("discord.js");
 const { getGuildConfig } = require("../db/client");
 const { handleVerifyStart } = require("../verification/verifySystem");
-const { handleSetupButton } = require("../commands/vsetup");
+const { handleSetupButton, handleRoleSelect } = require("../commands/vsetup");
 const embeds = require("../config/messages");
 
 async function execute(interaction) {
+  if (
+    interaction.isStringSelectMenu() &&
+    interaction.customId.startsWith("axex_setup_roles_")
+  ) {
+    await handleRoleSelect(interaction);
+    return;
+  }
+
   if (!interaction.isButton() || !interaction.customId.startsWith("axex_"))
     return;
 

@@ -17,14 +17,6 @@ const commands = [
     dm_permission: false,
     options: [
       {
-        name: "timeout",
-        description: "Verification timeout in seconds (default: 60)",
-        type: 4,
-        required: false,
-        min_value: 30,
-        max_value: 300,
-      },
-      {
         name: "min-age",
         description: "Minimum account age in days (default: 7)",
         type: 4,
