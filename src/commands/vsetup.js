@@ -13,8 +13,6 @@ const {
 } = require("../setup/autoSetup");
 
 const pendingSetups = new Map();
-const pendingModalTimeouts = new Map();
-const CONFIRMATION_TTL_MS = 60_000;
 
 function beginPendingSetup(
   guildId,
@@ -25,10 +23,6 @@ function beginPendingSetup(
   settings = {},
 ) {
   const token = uuidv4();
-  const timeout = setTimeout(
-    () => pendingSetups.delete(token),
-    CONFIRMATION_TTL_MS,
-  );
   pendingSetups.set(token, {
     guildId,
     userId,
@@ -36,31 +30,12 @@ function beginPendingSetup(
     memberRoleIds,
     timeoutSeconds,
     settings,
-    timeout,
   });
   return token;
 }
 
-function setPendingModalTimeout(guildId, userId, timeoutSeconds) {
-  const key = `${guildId}:${userId}`;
-  const timeout = setTimeout(
-    () => pendingModalTimeouts.delete(key),
-    CONFIRMATION_TTL_MS,
-  );
-  pendingModalTimeouts.set(key, { timeoutSeconds, timeout });
-}
-
-function consumePendingModalTimeout(guildId, userId) {
-  const key = `${guildId}:${userId}`;
-  const pending = pendingModalTimeouts.get(key);
-  if (pending) clearTimeout(pending.timeout);
-  pendingModalTimeouts.delete(key);
-  return pending?.timeoutSeconds || 60;
-}
-
 function consumePendingSetup(token) {
   const pending = pendingSetups.get(token);
-  if (pending) clearTimeout(pending.timeout);
   pendingSetups.delete(token);
   return pending || null;
 }
@@ -306,6 +281,4 @@ module.exports = {
   beginPendingSetup,
   runSetup,
   inspectResources,
-  consumePendingModalTimeout,
-  setPendingModalTimeout,
 };
