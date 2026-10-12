@@ -17,7 +17,7 @@ module.exports = {
     `${E.invisible} ${E.arrow} Run \`/axex repair\` to repair the Axex installation.`,
   axexNotConfigured: () =>
     `${E.warning} **__Axex Not Configured__**\n` +
-    `${E.invisible} ${E.arrow} Run `/vsetup` before using this command.`,
+    `${E.invisible} ${E.arrow} Run \`/vsetup\` before using this command.`,
   verificationServiceNotConfigured: () =>
     new EmbedBuilder()
       .setColor(0xef4444)
