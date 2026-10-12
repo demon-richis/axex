@@ -42,7 +42,7 @@ module.exports = {
           `${E.invisible} ${E.success} Your personal verification link is ready.\n` +
           `${E.invisible} ${E.timeout} **Expires in:** \`10 minutes\`\n` +
           `${E.invisible} ${E.protected} This link is single-use and tied to your account.\n\n` +
-          `${E.invisible} ${E.link} **[Start Verification](${verifyUrl})**`,
+          `${E.invisible} ${E.arrow} Use the **Start Verification** button below to continue.`,
       ),
   quarantineServerOnly: () =>
     `${E.server} **__Server Only__**\n` +
