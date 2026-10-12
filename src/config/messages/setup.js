@@ -5,9 +5,7 @@ const {
   ButtonStyle,
   EmbedBuilder,
   MessageFlags,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
+  StringSelectMenuBuilder,
 } = require("discord.js");
 
 function base(color, description) {
@@ -28,8 +26,8 @@ module.exports.configureRolesPrompt = (token) => ({
       0x5865f2,
       `${E.creation} **__Axex Setup — Step 1__**\n\n` +
         `${E.invisible} ${E.reminder} Select the role(s) assigned to regular members.\n\n` +
-        `${E.invisible} ${E.arrow} Click the button below, then paste role IDs or mentions.\n\n` +
-        `*Separate multiple roles with commas*`,
+        `${E.invisible} ${E.arrow} Click the button below, then select the member role(s).\n\n` +
+        `*You can select up to 25 manageable roles*`,
     ),
   ],
   components: [
@@ -75,27 +73,58 @@ module.exports.resourceButtons = (token, stage) => ({
   ],
 });
 
-module.exports.rolesModal = () => {
-  const roleIdsInput = new TextInputBuilder()
-    .setCustomId("role_ids_input")
-    .setLabel("Paste Role IDs or Mentions (comma separated)")
-    .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder("123456789012345678, @members, 987654321")
-    .setRequired(true)
-    .setMinLength(1);
-  return new ModalBuilder()
-    .setCustomId("axex_setup_roles_modal")
-    .setTitle("Member Role IDs")
-    .addComponents(new ActionRowBuilder().addComponents(roleIdsInput));
+module.exports.rolesMenu = (guild, token) => {
+  const botHighest = guild.members.me?.roles.highest?.position ?? 0;
+  const roles = [...guild.roles.cache.values()]
+    .filter(
+      (role) =>
+        !role.managed && role.id !== guild.id && role.position < botHighest,
+    )
+    .sort((a, b) => b.position - a.position)
+    .slice(0, 25);
+  const options = roles.length
+    ? roles.map((role) => ({
+        label: role.name.slice(0, 100),
+        value: role.id,
+        description: `Assign ${role.name.slice(0, 80)} to regular members`,
+      }))
+    : [{ label: "No manageable roles found", value: "__none__" }];
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(`axex_setup_roles_${token}`)
+    .setPlaceholder(
+      roles.length
+        ? "Select regular member roles"
+        : "No manageable roles found",
+    )
+    .setMinValues(1)
+    .setMaxValues(Math.max(1, Math.min(25, roles.length)))
+    .setDisabled(!roles.length)
+    .addOptions(options);
+  return {
+    embeds: [
+      base(
+        0x5865f2,
+        `${E.creation} **__Select Member Roles__**\n\n${E.invisible} Choose the role(s) Axex should preserve for regular members.`,
+      ),
+    ],
+    components: [
+      new ActionRowBuilder().addComponents(menu),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`axex_setup_cancel_${token}`)
+          .setLabel("Cancel")
+          .setStyle(ButtonStyle.Secondary),
+      ),
+    ],
+  };
 };
 
 module.exports.invalidRoleIds = () =>
   base(
     0xff0000,
     `${E.warning} **__Invalid Member Roles__**\n\n` +
-      `${E.invisible} ${E.arrow} Use valid role IDs or @mentions\n` +
-      `${E.invisible} ${E.arrow} Separate multiple roles with commas\n\n` +
-      `*Example: \`123456789012345678, @member\`*`,
+      `${E.invisible} ${E.arrow} Select at least one manageable role from the dropdown.\n\n` +
+      `*The role must be below Axex in the Discord role hierarchy*`,
   );
 
 module.exports.saveRolesFailed = () =>
@@ -127,8 +156,8 @@ module.exports.cancelled = () =>
 module.exports.confirmationExpired = () =>
   base(
     0x888888,
-    `${E.failed} **__Confirmation Expired__**\n\n` +
-      `This setup session has timed out.\n\n` +
+    `${E.failed} **__Setup Session Ended__**\n\n` +
+      `This setup session is no longer active.\n\n` +
       `*Run \`/vsetup\` again*`,
   );
 
@@ -232,7 +261,7 @@ module.exports.success = ({
         channelsCreated.join(", ") ||
         "None"
       }\n` +
-      `> ${E.invisible} **Restricted channels:** \`${channelsUpdated}\` • ${E.timeout} **Timeout:** \`${settings.timeout ?? 60}s\` • ${E.newAccount} **Min Age:** \`${settings.minAge ?? 7}d\`\n` +
+      `> ${E.invisible} **Restricted channels:** \`${channelsUpdated}\` • ${E.newAccount} **Min Age:** \`${settings.minAge ?? 7}d\`\n` +
       `> ${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` • ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} • ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}\n` +
       (hierarchyOk
         ? `*Setup completed successfully*`
