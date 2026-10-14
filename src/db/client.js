@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { neon } = require("@neondatabase/serverless");
+const { createVerificationCallbackStore } = require("./verificationCallbackStore");
 
 let sql = null;
 const guildConfigCache = new Map();
@@ -18,6 +19,41 @@ function getSql() {
 
   if (!sql) sql = neon(process.env.DATABASE_URL);
   return sql;
+}
+
+const verificationCallbackStore = createVerificationCallbackStore(getSql);
+
+async function claimVerificationCallback(data) {
+  return verificationCallbackStore.claim(data);
+}
+
+async function completeVerificationCallback(referenceId, claimId) {
+  return verificationCallbackStore.complete(referenceId, claimId);
+}
+
+async function retryVerificationCallback(referenceId, claimId, error) {
+  return verificationCallbackStore.retryable(referenceId, claimId, error);
+}
+
+async function completeVerificationCallbackAfterRoleRetry(referenceId) {
+  return verificationCallbackStore.completeAfterRoleRetry(referenceId);
+}
+
+async function completeRoleUpdateRetriesForReference(referenceId) {
+  try {
+    await getSql()`
+      UPDATE role_update_retries
+      SET status = 'completed', updated_at = NOW()
+      WHERE reference_id = ${referenceId} AND status = 'pending'
+    `;
+    return true;
+  } catch (error) {
+    console.error(
+      `Could not reconcile role update retries for reference ${referenceId}:`,
+      error.message,
+    );
+    return false;
+  }
 }
 
 async function initDB() {
@@ -157,11 +193,21 @@ async function saveMemberRoleIds(guildId, memberRoleIds) {
   }
 }
 
-async function logQuarantine(guildId, userId, reason, clickMs, accountAge) {
+async function logQuarantine(
+  guildId,
+  userId,
+  reason,
+  clickMs,
+  accountAge,
+  referenceId = null,
+) {
   try {
     await getSql()`
-      INSERT INTO quarantine_log (guild_id, user_id, reason, click_ms, account_age)
-      VALUES (${guildId}, ${userId}, ${reason}, ${clickMs}, ${accountAge})
+      INSERT INTO quarantine_log
+        (reference_id, guild_id, user_id, reason, click_ms, account_age)
+      VALUES
+        (${referenceId}, ${guildId}, ${userId}, ${reason}, ${clickMs}, ${accountAge})
+      ON CONFLICT (reference_id) WHERE reference_id IS NOT NULL DO NOTHING
     `;
     return true;
   } catch (error) {
@@ -424,6 +470,11 @@ module.exports = {
   getWebhookUrl,
   logQuarantine,
   logVerificationEvent,
+  claimVerificationCallback,
+  completeVerificationCallback,
+  retryVerificationCallback,
+  completeVerificationCallbackAfterRoleRetry,
+  completeRoleUpdateRetriesForReference,
   getVerificationTimeline,
   createRoleUpdateRetry,
   getPendingRoleUpdateRetries,

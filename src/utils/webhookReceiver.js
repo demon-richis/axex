@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const app = express();
 app.use(express.json({ limit: "100kb" }));
 const { sendLiveUpdate } = require("./liveUpdate");
+const { fingerprintPayload } = require("../db/verificationCallbackStore");
 
 let server;
 let discordClient;
@@ -16,6 +17,7 @@ async function processRoleUpdateRetries() {
     getPendingRoleUpdateRetries,
     completeRoleUpdateRetry,
     failRoleUpdateRetry,
+    completeVerificationCallbackAfterRoleRetry,
     logVerificationEvent,
   } = require("../db/client");
   const retries = await getPendingRoleUpdateRetries(25);
@@ -27,10 +29,20 @@ async function processRoleUpdateRetries() {
       const member =
         guild && (await guild.members.fetch(retry.user_id).catch(() => null));
       if (!member) throw new Error("Member or guild is unavailable");
-      await member.roles.remove(retry.remove_role_id).catch(() => {});
-      await member.roles.add(retry.target_role_id);
-      await completeRoleUpdateRetry(retry.id);
+      const roleCache = member.roles.cache;
+      if (!roleCache || roleCache.has(retry.remove_role_id)) {
+        await member.roles.remove(retry.remove_role_id).catch(() => {});
+      }
+      if (!roleCache || !roleCache.has(retry.target_role_id)) {
+        await member.roles.add(retry.target_role_id);
+      }
+      const retryCompleted = await completeRoleUpdateRetry(retry.id);
+      if (!retryCompleted) throw new Error("Could not complete durable role update retry");
+      if (retry.reference_id) {
+        await completeVerificationCallbackAfterRoleRetry(retry.reference_id);
+      }
       await logVerificationEvent({
+        eventId: `ROLE-RETRY-${retry.id}`,
         referenceId: retry.reference_id,
         guildId: retry.guild_id,
         userId: retry.user_id,
@@ -66,11 +78,10 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/webhook", (req, res, next) => {
-  const address = String(
-    req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown",
-  )
-    .split(",")[0]
-    .trim();
+  // Do not trust X-Forwarded-For unless a known reverse proxy is explicitly
+  // configured. A direct caller can supply that header and rotate rate-limit
+  // buckets. The socket peer is the safe default for this standalone listener.
+  const address = String(req.socket.remoteAddress || "unknown");
   const now = Date.now();
   const current = webhookBuckets.get(address);
   const bucket =
@@ -183,6 +194,7 @@ app.post("/webhook/intelligence-event", async (req, res) => {
 app.post("/webhook/verify-result", async (req, res) => {
   if (!validateKey(req, res)) return;
 
+  const payload = req.body || {};
   const {
     guildId,
     userId,
@@ -196,7 +208,7 @@ app.post("/webhook/verify-result", async (req, res) => {
     attempts,
     cooldownUntil,
     locked,
-  } = req.body || {};
+  } = payload;
   const normalizedGuildId = String(guildId || "").trim();
   const normalizedUserId = String(userId || "").trim();
   const normalizedReferenceId = String(referenceId || "").trim() || null;
@@ -208,8 +220,17 @@ app.post("/webhook/verify-result", async (req, res) => {
       referenceId: normalizedReferenceId,
     });
   }
+  if (!/^AX-[A-F0-9]{8}$/.test(normalizedReferenceId || "")) {
+    return res.status(400).json({
+      received: false,
+      error: "A valid verification reference is required",
+      code: "INVALID_REFERENCE_ID",
+    });
+  }
 
   const verificationKey = `${normalizedGuildId}:${normalizedUserId}`;
+  let callbackClaimId = null;
+  let retryClaim;
   const now = Date.now();
   const currentVerification = verificationBuckets.get(verificationKey);
   const verificationBucket =
@@ -268,8 +289,13 @@ app.post("/webhook/verify-result", async (req, res) => {
       getGuildConfig,
       getGuildState,
       logVerificationEvent,
+      claimVerificationCallback,
+      completeVerificationCallback,
+      retryVerificationCallback,
+      completeRoleUpdateRetriesForReference,
     } = require("../db/client");
     const {
+      accountAgeDays,
       quarantineUser,
       recordAction,
     } = require("../verification/verifySystem");
@@ -286,7 +312,78 @@ app.post("/webhook/verify-result", async (req, res) => {
         referenceId: normalizedReferenceId,
       });
 
+    let claim;
+    try {
+      claim = await claimVerificationCallback({
+        referenceId: normalizedReferenceId,
+        guildId: normalizedGuildId,
+        userId: normalizedUserId,
+        passed,
+        payloadHash: fingerprintPayload(payload),
+      });
+    } catch (error) {
+      console.error(
+        "[WebhookReceiver] Could not claim verification callback:",
+        error instanceof Error ? error.message : "unknown error",
+      );
+      return res.status(503).json({
+        received: false,
+        error: "Verification callback storage is unavailable",
+        code: "CALLBACK_STORE_UNAVAILABLE",
+        referenceId: normalizedReferenceId,
+      });
+    }
+    if (claim.state === "completed") {
+      return res.json({
+        received: true,
+        passed: claim.passed,
+        idempotent: true,
+      });
+    }
+    if (claim.state === "conflict") {
+      return res.status(409).json({
+        received: false,
+        error: "Verification reference does not match this callback",
+        code: "CALLBACK_REFERENCE_CONFLICT",
+        referenceId: normalizedReferenceId,
+      });
+    }
+    if (claim.state === "in_progress") {
+      return res.status(409).json({
+        received: false,
+        error: "Verification callback is already being processed",
+        code: "CALLBACK_IN_PROGRESS",
+        referenceId: normalizedReferenceId,
+      });
+    }
+    if (claim.state !== "claimed" || !claim.claimId) {
+      return res.status(503).json({
+        received: false,
+        error: "Verification callback could not be claimed",
+        code: "CALLBACK_CLAIM_FAILED",
+        referenceId: normalizedReferenceId,
+      });
+    }
+    callbackClaimId = claim.claimId;
+    retryClaim = async (reason) => {
+      if (!callbackClaimId) return;
+      const currentClaimId = callbackClaimId;
+      callbackClaimId = null;
+      const released = await retryVerificationCallback(
+        normalizedReferenceId,
+        currentClaimId,
+        reason,
+      );
+      if (!released) {
+        console.error(
+          "[WebhookReceiver] Could not release verification callback claim:",
+          normalizedReferenceId,
+        );
+      }
+    };
+
     await logVerificationEvent({
+      eventId: `CALLBACK-${normalizedReferenceId}`,
       referenceId: normalizedReferenceId,
       guildId: normalizedGuildId,
       userId: normalizedUserId,
@@ -326,7 +423,14 @@ app.post("/webhook/verify-result", async (req, res) => {
             ? "locked"
             : "wrongAnswer",
         referenceId: normalizedReferenceId,
+        eventId: `VERIFY-${normalizedReferenceId}`,
       });
+      const completed = await completeVerificationCallback(
+        normalizedReferenceId,
+        callbackClaimId,
+      );
+      callbackClaimId = null;
+      if (!completed) throw new Error("Could not complete verification callback receipt");
       await member
         .send({
           embeds: [
@@ -350,7 +454,7 @@ app.post("/webhook/verify-result", async (req, res) => {
           quarantined: true,
           referenceId,
         },
-      });
+      }).catch(() => {});
       return res.json({ received: true, passed: false, terminal });
     }
 
@@ -358,6 +462,7 @@ app.post("/webhook/verify-result", async (req, res) => {
     if (!config.verified_role_id || !config.unverified_role_id) {
       const message = "Guild verification roles are not configured";
       await logVerificationEvent({
+        eventId: `ROLE-CONFIG-${normalizedReferenceId}`,
         referenceId: normalizedReferenceId,
         guildId: normalizedGuildId,
         userId: normalizedUserId,
@@ -366,6 +471,7 @@ app.post("/webhook/verify-result", async (req, res) => {
         reason: message,
         accountAge: accountAgeDays,
       });
+      await retryClaim(message);
       return res.status(500).json({
         received: false,
         error: message,
@@ -374,9 +480,18 @@ app.post("/webhook/verify-result", async (req, res) => {
       });
     }
     try {
-      await member.roles.remove(config.unverified_role_id);
-      await member.roles.add(config.verified_role_id);
+      const roleCache = member.roles.cache;
+      if (!roleCache || roleCache.has(config.unverified_role_id)) {
+        await member.roles.remove(config.unverified_role_id);
+      }
+      if (!roleCache || !roleCache.has(config.verified_role_id)) {
+        await member.roles.add(config.verified_role_id);
+      }
       await member.fetch().catch(() => member);
+      const retriesCleared = await completeRoleUpdateRetriesForReference(
+        normalizedReferenceId,
+      );
+      if (!retriesCleared) throw new Error("Could not reconcile pending role update retries");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Discord role update failed";
@@ -385,6 +500,7 @@ app.post("/webhook/verify-result", async (req, res) => {
         message,
       );
       await logVerificationEvent({
+        eventId: `ROLE-FAILED-${normalizedReferenceId}`,
         referenceId: normalizedReferenceId,
         guildId: normalizedGuildId,
         userId: normalizedUserId,
@@ -409,6 +525,7 @@ app.post("/webhook/verify-result", async (req, res) => {
         removeRoleId: config.unverified_role_id,
         error: message,
       });
+      await retryClaim(message);
       return res.status(502).json({
         received: false,
         error: "Discord role update failed",
@@ -427,9 +544,15 @@ app.post("/webhook/verify-result", async (req, res) => {
       accountAge: accountAgeDays,
       logType: "verified",
       referenceId: normalizedReferenceId,
+      eventId: `VERIFY-${normalizedReferenceId}`,
     });
+    const completed = await completeVerificationCallback(
+      normalizedReferenceId,
+      callbackClaimId,
+    );
+    callbackClaimId = null;
+    if (!completed) throw new Error("Could not complete verification callback receipt");
     await member.send({ embeds: [embeds.replies.success()] }).catch(() => {});
-
     try {
       await recordEvent(normalizedUserId, normalizedGuildId, "VERIFY_SUCCESS", {
         clickMs,
@@ -441,9 +564,20 @@ app.post("/webhook/verify-result", async (req, res) => {
     const message =
       error instanceof Error ? error.message : "Webhook processing failed";
     console.error("[WebhookReceiver] Error:", message);
+    if (callbackClaimId && retryClaim) {
+      try {
+        await retryClaim(message);
+      } catch (releaseError) {
+        console.error(
+          "[WebhookReceiver] Could not release callback claim:",
+          releaseError instanceof Error ? releaseError.message : "unknown error",
+        );
+      }
+    }
     try {
       const { logVerificationEvent } = require("../db/client");
       await logVerificationEvent({
+        eventId: `CALLBACK-ERROR-${normalizedReferenceId}`,
         referenceId: normalizedReferenceId,
         guildId: normalizedGuildId,
         userId: normalizedUserId,
