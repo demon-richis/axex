@@ -73,22 +73,27 @@ async function quarantineUser(member, config, reason, options = {}) {
   const accountAge = options.accountAge ?? accountAgeDays(member);
   const clickMs = options.clickMs ?? null;
   const state = options.state || {};
-  await member.roles.remove(config.unverified_role_id).catch((error) => {
-    void sendLiveUpdate(member.guild, {
-      logType: "roleUpdateFailed",
-      member,
-      roleName: "unverified",
-      error: error.message,
+  const roleCache = member.roles.cache;
+  if (!roleCache || roleCache.has(config.unverified_role_id)) {
+    await member.roles.remove(config.unverified_role_id).catch((error) => {
+      void sendLiveUpdate(member.guild, {
+        logType: "roleUpdateFailed",
+        member,
+        roleName: "unverified",
+        error: error.message,
+      });
     });
-  });
-  await member.roles.add(config.quarantined_role_id).catch((error) => {
-    void sendLiveUpdate(member.guild, {
-      logType: "roleUpdateFailed",
-      member,
-      roleName: "quarantined",
-      error: error.message,
+  }
+  if (!roleCache || !roleCache.has(config.quarantined_role_id)) {
+    await member.roles.add(config.quarantined_role_id).catch((error) => {
+      void sendLiveUpdate(member.guild, {
+        logType: "roleUpdateFailed",
+        member,
+        roleName: "quarantined",
+        error: error.message,
+      });
     });
-  });
+  }
 
   const quarantineChannel = await fetchChannel(
     member.guild,
@@ -108,7 +113,14 @@ async function quarantineUser(member, config, reason, options = {}) {
       });
   }
 
-  await logQuarantine(member.guild.id, member.id, reason, clickMs, accountAge);
+  await logQuarantine(
+    member.guild.id,
+    member.id,
+    reason,
+    clickMs,
+    accountAge,
+    options.referenceId,
+  );
   await createQuarantineCase({
     guildId: member.guild.id,
     userId: member.id,
@@ -127,6 +139,7 @@ async function quarantineUser(member, config, reason, options = {}) {
     accountAge,
     ipFlagged: options.ipFlagged,
     referenceId: options.referenceId,
+    eventId: options.eventId,
     logType:
       options.logType ||
       (reason === "VPN_PROXY_DETECTED" ? "vpnDetected" : "locked"),
@@ -192,7 +205,6 @@ async function handleVerifyStart(interaction, config, options = {}) {
     console.log("[Verify] Pending check status:", pendingRes.status);
     if (pendingRes.ok) {
       const data = await pendingRes.json();
-      console.log("[Verify] Pending token data:", data);
       if (data?.locked) {
         await interaction.editReply({
           embeds: [
@@ -226,7 +238,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
       console.error(`[Verify] Pending check returned ${pendingRes.status}`);
     }
   } catch (err) {
-    console.error("[Verify] Pending check failed:", err.message);
+    console.error("[Verify] Pending check failed:", err?.name || "unknown");
   }
 
   // Create new token if none found
@@ -255,24 +267,21 @@ async function handleVerifyStart(interaction, config, options = {}) {
         token = newToken;
         referenceId = created?.referenceId || null;
       } else {
-        const responseText = await createRes.text().catch(() => "");
-        console.error(
-          `[Verify] Token create response: ${responseText.slice(0, 200)}`,
-        );
+        console.error("[Verify] Token create request rejected:", createRes.status);
       }
     } catch (err) {
-      console.error("[Verify] Token create failed:", err.message);
+      console.error("[Verify] Token create failed:", err?.name || "unknown");
       await sendLiveUpdate(member.guild, {
         logType: "serviceError",
         member,
         stage: "token_create",
-        error: err.message,
+        error: "Token creation request failed",
       });
     }
   }
 
   if (!token) {
-    console.error("[Verify] Could not obtain token for user", member.id);
+    console.error("[Verify] Could not obtain a verification token");
     await interaction.editReply({
       embeds: [embeds.system.verificationLinkError()],
     });
@@ -286,7 +295,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
   }
 
   const verifyURL = websiteUrl(`/verify?token=${encodeURIComponent(token)}`);
-  console.log("[Verify] Sending link to", member.id, ":", verifyURL);
+  console.log("[Verify] Verification link prepared");
   void logVerificationEvent({
     referenceId,
     guildId: member.guild.id,

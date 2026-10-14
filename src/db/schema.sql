@@ -56,6 +56,7 @@ ALTER TABLE guild_config
 
 CREATE TABLE IF NOT EXISTS quarantine_log (
   id          SERIAL PRIMARY KEY,
+  reference_id TEXT,
   guild_id    TEXT NOT NULL,
   user_id     TEXT NOT NULL,
   reason      TEXT NOT NULL,
@@ -63,6 +64,10 @@ CREATE TABLE IF NOT EXISTS quarantine_log (
   account_age INTEGER,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE quarantine_log ADD COLUMN IF NOT EXISTS reference_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS quarantine_log_reference_unique_idx
+  ON quarantine_log (reference_id) WHERE reference_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS verification_events (
   id           SERIAL PRIMARY KEY,
@@ -83,6 +88,22 @@ CREATE TABLE IF NOT EXISTS verification_events (
 ALTER TABLE verification_events ADD COLUMN IF NOT EXISTS event_id TEXT;
 ALTER TABLE verification_events ADD COLUMN IF NOT EXISTS reference_id TEXT;
 CREATE INDEX IF NOT EXISTS verification_events_reference_idx ON verification_events (guild_id, reference_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS verification_callback_receipts (
+  reference_id TEXT PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  passed BOOLEAN NOT NULL,
+  payload_hash TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('processing', 'retryable', 'completed')),
+  claim_id TEXT NOT NULL,
+  lease_until TIMESTAMPTZ,
+  attempt_count INTEGER NOT NULL DEFAULT 1,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
 
 CREATE TABLE IF NOT EXISTS role_update_retries (
   id              SERIAL PRIMARY KEY,
