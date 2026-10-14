@@ -1,10 +1,6 @@
 const { MessageFlags, PermissionFlagsBits } = require("discord.js");
 const { v4: uuidv4 } = require("uuid");
-const {
-  getGuildConfig,
-  savePanelMessageId,
-  saveMemberRoleIds,
-} = require("../db/client");
+const { saveMemberRoleIds } = require("../db/client");
 const embeds = require("../config/messages");
 const {
   autoSetup,
@@ -13,6 +9,8 @@ const {
 } = require("../setup/autoSetup");
 
 const pendingSetups = new Map();
+const PROGRESS_STEPS = 13;
+const PENDING_SETUP_TTL_MS = 10 * 60 * 1000;
 
 function beginPendingSetup(
   guildId,
@@ -30,6 +28,7 @@ function beginPendingSetup(
     memberRoleIds,
     timeoutSeconds,
     settings,
+    expiresAt: Date.now() + PENDING_SETUP_TTL_MS,
   });
   return token;
 }
@@ -47,31 +46,27 @@ async function runSetup(
   timeoutSeconds = 60,
   settings = {},
 ) {
+  const progress = {};
+  const updateProgress = async (step, status, detail = "") => {
+    progress[step] = { status, detail };
+    await interaction
+      .editReply({ embeds: [embeds.setup.progress(progress)] })
+      .catch(() => {});
+  };
   try {
+    for (let step = 1; step <= PROGRESS_STEPS; step += 1)
+      progress[step] = { status: "pending", detail: "" };
+    await interaction.editReply({
+      embeds: [embeds.setup.progress(progress)],
+      components: [],
+    });
     const config = await autoSetup(interaction.guild, {
       strategy,
       memberRoleIds: configuredMemberRoleIds,
       timeoutSeconds,
+      onProgress: updateProgress,
       ...settings,
     });
-    const verifyChannel = interaction.guild.channels.cache.get(
-      config.verifyChannelId,
-    );
-    const savedConfig = await getGuildConfig(interaction.guild.id);
-    let panelExists = false;
-    if (savedConfig?.panel_message_id && verifyChannel) {
-      panelExists = Boolean(
-        await verifyChannel.messages
-          .fetch(savedConfig.panel_message_id)
-          .catch(() => null),
-      );
-    }
-    if (verifyChannel && !panelExists) {
-      const panel = await verifyChannel.send(
-        embeds.verify.permanentPanel(interaction.guild.name),
-      );
-      await savePanelMessageId(interaction.guild.id, panel.id);
-    }
     const responseEmbeds = [
       embeds.setup.success({
         ...config,
@@ -100,7 +95,12 @@ async function runSetup(
 
 async function validatePendingOwner(interaction, token) {
   const pending = pendingSetups.get(token);
-  if (!pending || pending.guildId !== interaction.guildId) {
+  if (
+    !pending ||
+    pending.guildId !== interaction.guildId ||
+    pending.expiresAt <= Date.now()
+  ) {
+    consumePendingSetup(token);
     await interaction.reply({
       embeds: [embeds.setup.confirmationExpired()],
       flags: MessageFlags.Ephemeral,
@@ -169,7 +169,7 @@ async function execute(interaction) {
 
 async function handleSetupButton(interaction) {
   const match =
-    /^axex_setup_(start|reconfigure|cancel|use|delete)_([0-9a-f-]{36})$/.exec(
+    /^axex_setup_(start|reconfigure|cancel|use|create|delete|delete_confirm)_([0-9a-f-]{36})$/.exec(
       interaction.customId,
     );
   if (!match) return false;
@@ -203,19 +203,32 @@ async function handleSetupButton(interaction) {
     );
     await interaction.update({
       embeds: [embeds.setup.existingResources(resources)],
-      ...embeds.setup.resourceButtons(choiceToken, "strategy"),
+      ...embeds.setup.resourceButtons(choiceToken, "strategy", resources),
     });
     return true;
   }
+  if (action === "delete" && pending.stage === "strategy") {
+    pendingSetups.set(token, { ...pending, stage: "delete-confirm" });
+    await interaction.update(embeds.setup.confirmDeleteResources(token));
+    return true;
+  }
   if (
-    (action === "use" || action === "delete") &&
-    pending.stage === "strategy"
+    ((action === "use" || action === "create") &&
+      pending.stage === "strategy") ||
+    (action === "delete_confirm" && pending.stage === "delete-confirm")
   ) {
     const { memberRoleIds } = consumePendingSetup(token);
     await interaction.deferUpdate();
+    if (!(await saveMemberRoleIds(interaction.guild.id, memberRoleIds))) {
+      await interaction.editReply({
+        embeds: [embeds.setup.saveRolesFailed()],
+        components: [],
+      });
+      return true;
+    }
     await runSetup(
       interaction,
-      action === "delete" ? "delete-recreate" : "use-existing",
+      action === "delete_confirm" ? "delete-recreate" : "use-existing",
       memberRoleIds,
       pending.timeoutSeconds,
       pending.settings,
@@ -249,14 +262,6 @@ async function handleRoleSelect(interaction) {
     consumePendingSetup(token);
     return true;
   }
-  if (!(await saveMemberRoleIds(interaction.guild.id, memberRoleIds))) {
-    await interaction.update({
-      embeds: [embeds.setup.saveRolesFailed()],
-      components: [],
-    });
-    consumePendingSetup(token);
-    return true;
-  }
   consumePendingSetup(token);
   const resources = inspectResources(interaction.guild);
   const choiceToken = beginPendingSetup(
@@ -269,7 +274,7 @@ async function handleRoleSelect(interaction) {
   );
   await interaction.update({
     embeds: [embeds.setup.existingResources(resources)],
-    ...embeds.setup.resourceButtons(choiceToken, "strategy"),
+    ...embeds.setup.resourceButtons(choiceToken, "strategy", resources),
   });
   return true;
 }

@@ -1,4 +1,8 @@
-const { ChannelType, PermissionFlagsBits } = require("discord.js");
+const {
+  ChannelType,
+  PermissionFlagsBits,
+  PermissionsBitField,
+} = require("discord.js");
 const {
   getGuildConfig,
   saveGuildConfig,
@@ -25,6 +29,27 @@ class SetupError extends Error {
 
 function overwrite(id, allow = [], deny = []) {
   return { id, allow, deny };
+}
+
+async function reportProgress(callback, step, status, detail) {
+  if (typeof callback !== "function") return;
+  try {
+    await callback(step, status, detail);
+  } catch {
+    // A failed UI edit must not interrupt recoverable setup work.
+  }
+}
+
+async function performStep(callback, step, detail, operation) {
+  await reportProgress(callback, step, "running", detail);
+  try {
+    const result = await operation();
+    await reportProgress(callback, step, "success", detail);
+    return result;
+  } catch (error) {
+    await reportProgress(callback, step, "failed", detail);
+    throw error;
+  }
 }
 
 function inspectResources(guild) {
@@ -127,10 +152,18 @@ async function ensureChannel(
 ) {
   try {
     if (existingChannel) {
-      await existingChannel.permissionOverwrites.set(
-        permissionOverwrites,
-        "Axex setup: configure channel permissions",
-      );
+      for (const rule of permissionOverwrites) {
+        const overwriteOptions = {};
+        for (const permission of new PermissionsBitField(rule.allow).toArray())
+          overwriteOptions[permission] = true;
+        for (const permission of new PermissionsBitField(rule.deny).toArray())
+          overwriteOptions[permission] = false;
+        await existingChannel.permissionOverwrites.edit(
+          rule.id,
+          overwriteOptions,
+          "Axex setup: configure channel permissions",
+        );
+      }
       stats.channelsCreated.push(`#${name} (existing)`);
       completed.push(`Configured #${name}`);
       return existingChannel;
@@ -199,55 +232,127 @@ async function hideExistingChannels(
 async function autoSetup(guild, options = {}) {
   const completed = [];
   const failed = [];
+  const warnings = [];
   const stats = {
     rolesCreated: [],
     channelsCreated: [],
     channelsUpdated: 0,
     hierarchyOk: false,
   };
+  let currentStep = 1;
+  const progress = options.onProgress;
   try {
     let resources = inspectResources(guild);
-    if (options.strategy === "delete-recreate") {
-      await deleteResources(resources, completed, failed);
-      resources = inspectResources(guild);
-    }
+    let botMember;
+    let botHighest;
+    await performStep(
+      progress,
+      1,
+      "Bot permissions and role hierarchy",
+      async () => {
+        botMember = await getBotMember(guild);
+        if (!botMember?.permissions || !botMember.roles?.highest) {
+          failed.push("Could not verify bot permissions and role hierarchy");
+          throw new SetupError(completed, failed);
+        }
+        const requiredPermissions = [
+          PermissionFlagsBits.ManageRoles,
+          PermissionFlagsBits.ManageChannels,
+        ];
+        const missingPermission = requiredPermissions.find(
+          (permission) => !botMember.permissions.has(permission),
+        );
+        if (missingPermission) {
+          failed.push("Bot is missing a required role or channel permission");
+          throw new SetupError(completed, failed);
+        }
+        const roleCheck = hierarchyStatus(guild, botMember);
+        botHighest = roleCheck.botHighest;
+        stats.hierarchyOk = roleCheck.hierarchyOk;
+        const unmanageableRole = resources.roles.find(
+          (role) => role.position >= botHighest.position,
+        );
+        if (unmanageableRole) {
+          failed.push(
+            `Role hierarchy prevents configuring ${unmanageableRole.name}`,
+          );
+          throw new SetupError(completed, failed);
+        }
+        return true;
+      },
+    );
 
-    const botMember = await getBotMember(guild);
-    const { hierarchyOk, botHighest } = hierarchyStatus(guild, botMember);
-    stats.hierarchyOk = hierarchyOk;
+    currentStep = 2;
+    await performStep(
+      progress,
+      2,
+      options.strategy === "delete-recreate"
+        ? "Deleting resources after explicit administrator confirmation"
+        : "No existing resources deleted",
+      async () => {
+        if (options.strategy === "delete-recreate") {
+          await deleteResources(resources, completed, failed);
+          resources = inspectResources(guild);
+        }
+      },
+    );
 
     const roleByName = new Map(
       resources.roles.map((role) => [role.name, role]),
     );
-    const verifiedRole = await ensureRole(
-      guild,
-      ROLE_DEFINITIONS[0],
-      roleByName.get("Verified"),
-      stats,
-      completed,
-      failed,
+    currentStep = 3;
+    const verifiedRole = await performStep(
+      progress,
+      3,
+      roleByName.has("Verified")
+        ? "Verified role reused and configured"
+        : "Verified role created",
+      () =>
+        ensureRole(
+          guild,
+          ROLE_DEFINITIONS[0],
+          roleByName.get("Verified"),
+          stats,
+          completed,
+          failed,
+        ),
     );
-    const unverifiedRole = await ensureRole(
-      guild,
-      ROLE_DEFINITIONS[1],
-      roleByName.get("Unverified"),
-      stats,
-      completed,
-      failed,
+    currentStep = 4;
+    const unverifiedRole = await performStep(
+      progress,
+      4,
+      roleByName.has("Unverified")
+        ? "Unverified role reused and configured"
+        : "Unverified role created",
+      () =>
+        ensureRole(
+          guild,
+          ROLE_DEFINITIONS[1],
+          roleByName.get("Unverified"),
+          stats,
+          completed,
+          failed,
+        ),
     );
-    const quarantinedRole = await ensureRole(
-      guild,
-      ROLE_DEFINITIONS[2],
-      roleByName.get("Quarantined"),
-      stats,
-      completed,
-      failed,
-    );
-    await positionQuarantinedRole(
-      quarantinedRole,
-      botHighest,
-      completed,
-      failed,
+    currentStep = 5;
+    const quarantinedRole = await performStep(
+      progress,
+      5,
+      roleByName.has("Quarantined")
+        ? "Quarantined role reused and configured"
+        : "Quarantined role created",
+      async () => {
+        const role = await ensureRole(
+          guild,
+          ROLE_DEFINITIONS[2],
+          roleByName.get("Quarantined"),
+          stats,
+          completed,
+          failed,
+        );
+        await positionQuarantinedRole(role, botHighest, completed, failed);
+        return role;
+      },
     );
 
     const botPermissionId =
@@ -256,79 +361,111 @@ async function autoSetup(guild, options = {}) {
     const channelByName = new Map(
       resources.channels.map((channel) => [channel.name, channel]),
     );
-    const verifyChannel = await ensureChannel(
-      guild,
-      "verify",
-      [
-        overwrite(everyoneId, [], [PermissionFlagsBits.ViewChannel]),
-        overwrite(
-          unverifiedRole.id,
+    currentStep = 6;
+    const verifyChannel = await performStep(
+      progress,
+      6,
+      channelByName.has("verify")
+        ? "#verify reused and configured"
+        : "#verify created",
+      () =>
+        ensureChannel(
+          guild,
+          "verify",
           [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.ReadMessageHistory,
+            overwrite(everyoneId, [], [PermissionFlagsBits.ViewChannel]),
+            overwrite(
+              unverifiedRole.id,
+              [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.ReadMessageHistory,
+              ],
+              [
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.CreatePublicThreads,
+                PermissionFlagsBits.CreatePrivateThreads,
+                PermissionFlagsBits.AddReactions,
+              ],
+            ),
+            overwrite(verifiedRole.id, [], [PermissionFlagsBits.ViewChannel]),
+            overwrite(
+              quarantinedRole.id,
+              [],
+              [PermissionFlagsBits.ViewChannel],
+            ),
+            overwrite(botPermissionId, [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+            ]),
           ],
-          [
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.CreatePublicThreads,
-            PermissionFlagsBits.CreatePrivateThreads,
-            PermissionFlagsBits.AddReactions,
-          ],
+          channelByName.get("verify"),
+          stats,
+          completed,
+          failed,
         ),
-        overwrite(verifiedRole.id, [], [PermissionFlagsBits.ViewChannel]),
-        overwrite(quarantinedRole.id, [], [PermissionFlagsBits.ViewChannel]),
-        overwrite(botPermissionId, [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-        ]),
-      ],
-      channelByName.get("verify"),
-      stats,
-      completed,
-      failed,
     );
-    const quarantineChannel = await ensureChannel(
-      guild,
-      "quarantine",
-      [
-        overwrite(everyoneId, [], [PermissionFlagsBits.ViewChannel]),
-        overwrite(
-          quarantinedRole.id,
+    currentStep = 7;
+    const quarantineChannel = await performStep(
+      progress,
+      7,
+      channelByName.has("quarantine")
+        ? "#quarantine reused and configured"
+        : "#quarantine created",
+      () =>
+        ensureChannel(
+          guild,
+          "quarantine",
           [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.ReadMessageHistory,
-            PermissionFlagsBits.CreatePrivateThreads,
-            PermissionFlagsBits.SendMessagesInThreads,
+            overwrite(everyoneId, [], [PermissionFlagsBits.ViewChannel]),
+            overwrite(
+              quarantinedRole.id,
+              [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.CreatePrivateThreads,
+                PermissionFlagsBits.SendMessagesInThreads,
+              ],
+              [PermissionFlagsBits.SendMessages],
+            ),
+            overwrite(unverifiedRole.id, [], [PermissionFlagsBits.ViewChannel]),
+            overwrite(verifiedRole.id, [], [PermissionFlagsBits.ViewChannel]),
+            overwrite(botPermissionId, [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ManageThreads,
+            ]),
           ],
-          [PermissionFlagsBits.SendMessages],
+          channelByName.get("quarantine"),
+          stats,
+          completed,
+          failed,
         ),
-        overwrite(unverifiedRole.id, [], [PermissionFlagsBits.ViewChannel]),
-        overwrite(verifiedRole.id, [], [PermissionFlagsBits.ViewChannel]),
-        overwrite(botPermissionId, [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-          PermissionFlagsBits.ManageThreads,
-        ]),
-      ],
-      channelByName.get("quarantine"),
-      stats,
-      completed,
-      failed,
     );
-    const logChannel = await ensureChannel(
-      guild,
-      "axex-logs",
-      [
-        overwrite(everyoneId, [], [PermissionFlagsBits.ViewChannel]),
-        overwrite(botPermissionId, [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-          PermissionFlagsBits.ReadMessageHistory,
-        ]),
-      ],
-      channelByName.get("axex-logs"),
-      stats,
-      completed,
-      failed,
+    currentStep = 8;
+    const logChannel = await performStep(
+      progress,
+      8,
+      channelByName.has("axex-logs")
+        ? "#axex-logs reused and configured"
+        : "#axex-logs created",
+      () =>
+        ensureChannel(
+          guild,
+          "axex-logs",
+          [
+            overwrite(everyoneId, [], [PermissionFlagsBits.ViewChannel]),
+            overwrite(botPermissionId, [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+            ]),
+          ],
+          channelByName.get("axex-logs"),
+          stats,
+          completed,
+          failed,
+        ),
     );
 
     const roleIdsToRestrict = [
@@ -341,12 +478,19 @@ async function autoSetup(guild, options = {}) {
       quarantineChannel.id,
       logChannel.id,
     ]);
-    stats.channelsUpdated = await hideExistingChannels(
-      guild,
-      [...new Set(roleIdsToRestrict)],
-      excludedIds,
-      completed,
-      failed,
+    currentStep = 9;
+    stats.channelsUpdated = await performStep(
+      progress,
+      9,
+      "Channel visibility restrictions applied",
+      () =>
+        hideExistingChannels(
+          guild,
+          [...new Set(roleIdsToRestrict)],
+          excludedIds,
+          completed,
+          failed,
+        ),
     );
 
     // Logging is sent directly by the bot to axex-logs; no Discord webhook is created.
@@ -372,12 +516,28 @@ async function autoSetup(guild, options = {}) {
       suspiciousAction: options.suspiciousAction || "flag",
       webhookUrl: webhookUrl,
     };
-    if (!(await saveGuildConfig(config))) {
-      failed.push("Could not save Axex configuration");
-      throw new SetupError(completed, failed);
-    }
+    currentStep = 10;
+    await performStep(
+      progress,
+      10,
+      "Database configuration saved",
+      async () => {
+        if (!(await saveGuildConfig(config))) {
+          failed.push("Could not save Axex configuration");
+          throw new SetupError(completed, failed);
+        }
+        completed.push("Saved Axex server configuration");
+      },
+    );
 
-    // Register guild with verification website
+    let portalRegistrationStatus = "warning";
+    currentStep = 11;
+    await reportProgress(
+      progress,
+      11,
+      "running",
+      "Registering server with the verification portal",
+    );
     try {
       const registerRes = await fetch(websiteUrl("/api/guild/register"), {
         method: "POST",
@@ -396,64 +556,117 @@ async function autoSetup(guild, options = {}) {
           quarantineRoleId: quarantinedRole.id,
         }),
       });
-      if (registerRes.ok) {
-        completed.push("Registered with Axex verification portal");
-      }
+      if (!registerRes.ok) throw new Error("registration rejected");
+      portalRegistrationStatus = "registered";
+      completed.push("Registered with Axex verification portal");
+      await reportProgress(
+        progress,
+        11,
+        "success",
+        "Portal registration confirmed",
+      );
     } catch {
-      // non-fatal, bot works without website registration
+      warnings.push("Verification portal registration did not complete");
+      await reportProgress(
+        progress,
+        11,
+        "warning",
+        "Registration unavailable; bot setup can continue",
+      );
     }
 
-    // Send a panel only when the configured panel is missing. This keeps
-    // repeated /axex repair runs idempotent and avoids duplicate buttons.
-    try {
+    currentStep = 12;
+    let panelStatus = "reused";
+    await performStep(progress, 12, "Verification panel", async () => {
       const savedConfig = await getGuildConfig(guild.id);
-      const existingPanel = savedConfig?.panel_message_id
+      let existingPanel = savedConfig?.panel_message_id
         ? await verifyChannel.messages
             .fetch(savedConfig.panel_message_id)
             .catch(() => null)
         : null;
       if (!existingPanel) {
+        const recentMessages = await verifyChannel.messages
+          .fetch({ limit: 50 })
+          .catch(() => null);
+        existingPanel = [...(recentMessages?.values?.() || [])].find(
+          (message) =>
+            message.components?.some((row) =>
+              row.components?.some(
+                (component) => component.customId === "axex_verify_start",
+              ),
+            ),
+        );
+      }
+      if (!existingPanel) {
         const { permanentPanel } = require("../config/messages/verify");
         const panelMsg = await verifyChannel.send(permanentPanel(guild.name));
-        await savePanelMessageId(guild.id, panelMsg.id);
+        if (!(await savePanelMessageId(guild.id, panelMsg.id))) {
+          failed.push("Could not save verification panel reference");
+          throw new SetupError(completed, failed);
+        }
+        panelStatus = "created";
         completed.push("Sent verification panel");
       } else {
         completed.push("Verification panel already present");
       }
-    } catch {
-      failed.push("Could not send verification panel");
-    }
+    });
 
-    await logChannel
-      .send({
-        embeds: [
-          embeds.setup.success({
-            ...stats,
-            ...config,
-            settings: {
-              guildName: guild.name,
-              timeout: config.verifyTimeout,
-              minAge: config.minAccountAge,
-              raidThreshold: config.raidThreshold,
-              honeypot: config.honeypot,
-              vpnCheck: config.vpnCheck,
-            },
-          }),
-        ],
-      })
-      .catch(() => {
-        failed.push("Could not send setup log");
-      });
-    if (!stats.hierarchyOk) {
-      await logChannel
-        .send({ embeds: [embeds.setup.roleHierarchyWarn()] })
-        .catch(() => {
-          failed.push("Could not send hierarchy warning");
+    currentStep = 13;
+    await performStep(
+      progress,
+      13,
+      "Configured resource IDs and final status validated",
+      async () => {
+        const valid = [
+          [guild.roles.cache.get(config.verifiedRoleId), "Verified"],
+          [guild.roles.cache.get(config.unverifiedRoleId), "Unverified"],
+          [guild.roles.cache.get(config.quarantinedRoleId), "Quarantined"],
+          [guild.channels.cache.get(config.verifyChannelId), "verify"],
+          [guild.channels.cache.get(config.quarantineChannelId), "quarantine"],
+          [guild.channels.cache.get(config.logChannelId), "axex-logs"],
+        ].every(([resource, expectedName]) => resource?.name === expectedName);
+        if (!valid) {
+          failed.push("Final resource ID validation failed");
+          throw new SetupError(completed, failed);
+        }
+        await logChannel.send({
+          embeds: [
+            embeds.setup.success({
+              ...stats,
+              ...config,
+              portalRegistrationStatus,
+              panelStatus,
+              settings: {
+                guildName: guild.name,
+                timeout: config.verifyTimeout,
+                minAge: config.minAccountAge,
+                raidThreshold: config.raidThreshold,
+                honeypot: config.honeypot,
+                vpnCheck: config.vpnCheck,
+              },
+            }),
+          ],
         });
-    }
+        if (!stats.hierarchyOk)
+          await logChannel.send({ embeds: [embeds.setup.roleHierarchyWarn()] });
+      },
+    );
     if (failed.length) throw new SetupError(completed, failed);
-    return { ...config, ...stats, completed };
+    return {
+      ...config,
+      ...stats,
+      completed,
+      warnings,
+      portalRegistrationStatus,
+      panelStatus,
+    };
   } catch (error) {
+    await reportProgress(
+      progress,
+      currentStep,
+      "failed",
+      "Operation could not be confirmed",
+    );
     if (error instanceof SetupError) throw error;
     failed.push("Unexpected setup error");
     throw new SetupError(completed, failed);

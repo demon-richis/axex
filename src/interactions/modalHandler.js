@@ -1,11 +1,6 @@
 const { MessageFlags, PermissionFlagsBits } = require("discord.js");
-const { getGuildConfig, saveMemberRoleIds } = require("../db/client");
 const embeds = require("../config/messages");
-const {
-  beginPendingSetup,
-  runSetup,
-  inspectResources,
-} = require("../commands/vsetup");
+const { beginPendingSetup, inspectResources } = require("../commands/vsetup");
 
 function parseRoleIds(value) {
   return [
@@ -49,22 +44,7 @@ async function execute(interaction) {
     });
     return true;
   }
-  if (!(await saveMemberRoleIds(interaction.guild.id, memberRoleIds))) {
-    await interaction.reply({
-      embeds: [embeds.setup.saveRolesFailed()],
-      flags: MessageFlags.Ephemeral,
-    });
-    return true;
-  }
-
   const timeoutSeconds = 60;
-  const config = await getGuildConfig(interaction.guild.id);
-  if (!config?.setup_done) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    await runSetup(interaction, "use-existing", memberRoleIds, timeoutSeconds);
-    return true;
-  }
-
   const token = beginPendingSetup(
     interaction.guild.id,
     interaction.user.id,
@@ -75,7 +55,7 @@ async function execute(interaction) {
   const resources = inspectResources(interaction.guild);
   await interaction.reply({
     embeds: [embeds.setup.existingResources(resources)],
-    ...embeds.setup.resourceButtons(token, "strategy"),
+    ...embeds.setup.resourceButtons(token, "strategy", resources),
     flags: MessageFlags.Ephemeral,
   });
   return true;

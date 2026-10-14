@@ -41,7 +41,7 @@ module.exports.configureRolesPrompt = (token) => ({
   flags: MessageFlags.Ephemeral,
 });
 
-module.exports.resourceButtons = (token, stage) => ({
+module.exports.resourceButtons = (token, stage, resources = null) => ({
   components: [
     new ActionRowBuilder().addComponents(
       ...(stage === "confirm"
@@ -55,20 +55,66 @@ module.exports.resourceButtons = (token, stage) => ({
               .setLabel("Cancel")
               .setStyle(ButtonStyle.Secondary),
           ]
-        : [
-            new ButtonBuilder()
-              .setCustomId(`axex_setup_use_${token}`)
-              .setLabel("Use Existing")
-              .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-              .setCustomId(`axex_setup_delete_${token}`)
-              .setLabel("Delete & Recreate")
-              .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-              .setCustomId(`axex_setup_cancel_${token}`)
-              .setLabel("Cancel")
-              .setStyle(ButtonStyle.Secondary),
-          ]),
+        : !resources || (!resources.roles.length && !resources.channels.length)
+          ? [
+              new ButtonBuilder()
+                .setCustomId(`axex_setup_create_${token}`)
+                .setLabel("Create Resources")
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId(`axex_setup_cancel_${token}`)
+                .setLabel("Cancel")
+                .setStyle(ButtonStyle.Secondary),
+            ]
+          : [
+              new ButtonBuilder()
+                .setCustomId(`axex_setup_use_${token}`)
+                .setLabel(
+                  resources &&
+                    ["Verified", "Unverified", "Quarantined"].every((name) =>
+                      resources.roles.some((role) => role.name === name),
+                    ) &&
+                    ["verify", "quarantine", "axex-logs"].every((name) =>
+                      resources.channels.some(
+                        (channel) => channel.name === name,
+                      ),
+                    )
+                    ? "Reuse & Configure Existing"
+                    : "Use Existing & Create Missing",
+                )
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`axex_setup_delete_${token}`)
+                .setLabel("Delete & Recreate")
+                .setStyle(ButtonStyle.Danger),
+              new ButtonBuilder()
+                .setCustomId(`axex_setup_cancel_${token}`)
+                .setLabel("Cancel")
+                .setStyle(ButtonStyle.Secondary),
+            ]),
+    ),
+  ],
+});
+
+module.exports.confirmDeleteResources = (token) => ({
+  embeds: [
+    base(
+      0xff0000,
+      `${E.warning} **__Confirm Delete & Recreate__**\n\n` +
+        `This permanently removes the matching AxeX roles and channels listed in the previous message.\n\n` +
+        `Choose **Confirm Delete & Recreate** only if you intend to remove and replace them.`,
+    ),
+  ],
+  components: [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`axex_setup_delete_confirm_${token}`)
+        .setLabel("Confirm Delete & Recreate")
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`axex_setup_cancel_${token}`)
+        .setLabel("Cancel")
+        .setStyle(ButtonStyle.Secondary),
     ),
   ],
 });
@@ -193,14 +239,81 @@ module.exports.commandUnavailable = () =>
       `*Check \`/help\` for commands*`,
   );
 
-module.exports.existingResources = (resources) =>
+module.exports.existingResources = (resources) => {
+  const expectedRoles = ["Verified", "Unverified", "Quarantined"];
+  const expectedChannels = ["verify", "quarantine", "axex-logs"];
+  const foundRoles = new Set(resources.roles.map((role) => role.name));
+  const foundChannels = new Set(
+    resources.channels.map((channel) => channel.name),
+  );
+  const total = resources.roles.length + resources.channels.length;
+  const complete =
+    expectedRoles.every((name) => foundRoles.has(name)) &&
+    expectedChannels.every((name) => foundChannels.has(name));
+  if (!total) {
+    return base(
+      0x5865f2,
+      `**__AxeX Setup — No Existing Resources__**\n\n` +
+        `No existing AxeX roles or channels were found. AxeX is ready to create the required resources.\n\n` +
+        `> • Roles found: None\n> • Channels found: None\n\n` +
+        `*The next step will create the missing resources.*`,
+    );
+  }
+  const roles = expectedRoles
+    .map(
+      (name) =>
+        `> • ${foundRoles.has(name) ? `✅ **${name}** — already exists` : `➕ **${name}** — will be created`}`,
+    )
+    .join("\n");
+  const channels = expectedChannels
+    .map((name) => {
+      const channel = resources.channels.find((item) => item.name === name);
+      return `> • ${channel ? `<#${channel.id}> — already exists` : `➕ **#${name}** — will be created`}`;
+    })
+    .join("\n");
+  return base(
+    complete ? 0x00ff88 : 0x5865f2,
+    `${complete ? "**__AxeX Setup — All Resources Found__**" : "**__AxeX Setup — Existing Resources Found__**"}\n\n` +
+      `${complete ? "All expected AxeX resources exist and can be reused/configured." : "Matching resources will be reused/configured; missing resources will be created."}\n\n` +
+      `**Roles**\n${roles}\n\n**Channels**\n${channels}\n\n` +
+      `*Choose how to continue below.*`,
+  );
+};
+
+const PROGRESS_STEPS = [
+  "Checking Permissions",
+  "Confirmed Resource Deletion",
+  "Verified Role",
+  "Unverified Role",
+  "Quarantined Role",
+  "Verification Channel",
+  "Quarantine Channel",
+  "Security Logs",
+  "Channel Restrictions",
+  "Database Configuration",
+  "Portal Registration",
+  "Verification Panel",
+  "Final Validation",
+];
+
+module.exports.progress = (statuses, title = "AxeX Setup Progress") =>
   base(
     0x5865f2,
-    `${E.loading} **__Axex Resources Found__**\n\n` +
-      `Existing Axex resources were detected.\n\n` +
-      `> • Roles: ${resources.roles.length ? resources.roles.map((role) => `**${role.name}**`).join(", ") : "None"}\n` +
-      `> • Channels: ${resources.channels.length ? resources.channels.map((channel) => `<#${channel.id}>`).join(", ") : "None"}\n\n` +
-      `*Choose how to handle them below*`,
+    `**__${title}__**\n\n` +
+      PROGRESS_STEPS.map((label, index) => {
+        const item = statuses[index + 1] || { status: "pending", detail: "" };
+        const icon =
+          item.status === "running"
+            ? "⏳"
+            : item.status === "success"
+              ? "✅"
+              : item.status === "failed"
+                ? "❌"
+                : item.status === "warning"
+                  ? "⚠️"
+                  : "▫️";
+        return `${index + 1}. ${icon} **${label}**${item.detail ? ` — ${item.detail}` : ""}`;
+      }).join("\n"),
   );
 
 module.exports.failure = (completed, failed) =>
@@ -210,7 +323,7 @@ module.exports.failure = (completed, failed) =>
       `Setup stopped before Axex could be safely enabled.\n\n` +
       `> • Completed: ${completed?.join(", ").slice(0, 1024) || "Nothing"}\n` +
       `> • Failed: ${failed?.join(", ").slice(0, 1024) || "Unknown error"}\n\n` +
-      `*Check hierarchy and bot permissions*`,
+      `*No success is claimed. Correct the listed issue, then rerun setup; completed resources are safe to reuse.*`,
   );
 
 module.exports.serverReady = () =>
@@ -234,10 +347,12 @@ module.exports.success = ({
   verifyChannelId,
   quarantineChannelId,
   logChannelId,
+  portalRegistrationStatus,
+  panelStatus,
 }) =>
   base(
     0x00ff88,
-    `${E.success} **__Setup Complete__**\n\n` +
+    `${E.success} **__AxeX Setup Complete__**\n\n` +
       `> ${E.server} **Server:** \`${settings.guildName || "Unknown"}\`\n` +
       `> ${E.role} **Roles:** ${
         [
@@ -261,6 +376,24 @@ module.exports.success = ({
         channelsCreated.join(", ") ||
         "None"
       }\n` +
+      `> **Resource actions:** ${
+        [...rolesCreated, ...channelsCreated]
+          .map((resource) =>
+            resource
+              .replace(" (existing)", " (reused/configured)")
+              .replace(
+                /^(?!.*\(reused\/configured\)).+$/,
+                (value) => `${value} (created)`,
+              ),
+          )
+          .join(", ") || "No resource changes"
+      }\n` +
+      (panelStatus
+        ? `> **Verification panel:** ${panelStatus === "created" ? "created" : "existing panel reused"}\n`
+        : "") +
+      (portalRegistrationStatus
+        ? `> **Portal registration:** ${portalRegistrationStatus === "registered" ? "registered" : "⚠️ not confirmed; bot setup can continue"}\n`
+        : "") +
       `> ${E.invisible} **Restricted channels:** \`${channelsUpdated}\` • ${E.newAccount} **Min Age:** \`${settings.minAge ?? 7}d\`\n` +
       `> ${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` • ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} • ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}\n` +
       (hierarchyOk
