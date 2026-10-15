@@ -147,16 +147,26 @@ async function quarantineUser(member, config, reason, options = {}) {
 }
 
 async function handleVerifyStart(interaction, config, options = {}) {
-  const member = interaction.member;
+  const member = options.member || interaction.member;
   const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
   } = require("discord.js");
 
-  const check = options.prechecked
-    ? { skip: false, config }
-    : await runPreChecks(member);
+  if (
+    !member?.user ||
+    member.user.id !== interaction.user?.id ||
+    member.guild?.id !== interaction.guildId ||
+    typeof member.roles?.cache?.has !== "function"
+  ) {
+    await interaction.editReply({
+      embeds: [embeds.system.verificationLinkError()],
+    });
+    return;
+  }
+
+  const check = await runPreChecks(member);
   if (check.skip) {
     if (check.reason === "BOT") return;
     if (check.reason === "OWNER") {
@@ -267,7 +277,10 @@ async function handleVerifyStart(interaction, config, options = {}) {
         token = newToken;
         referenceId = created?.referenceId || null;
       } else {
-        console.error("[Verify] Token create request rejected:", createRes.status);
+        console.error(
+          "[Verify] Token create request rejected:",
+          createRes.status,
+        );
       }
     } catch (err) {
       console.error("[Verify] Token create failed:", err?.name || "unknown");
