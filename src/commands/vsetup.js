@@ -1,5 +1,5 @@
 const { MessageFlags, PermissionFlagsBits } = require("discord.js");
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID } = require("node:crypto");
 const { saveMemberRoleIds } = require("../db/client");
 const embeds = require("../config/messages");
 const {
@@ -20,7 +20,7 @@ function beginPendingSetup(
   timeoutSeconds = 60,
   settings = {},
 ) {
-  const token = uuidv4();
+  const token = randomUUID();
   pendingSetups.set(token, {
     guildId,
     userId,

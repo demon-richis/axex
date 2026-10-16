@@ -220,7 +220,7 @@ app.post("/webhook/verify-result", async (req, res) => {
       referenceId: normalizedReferenceId,
     });
   }
-  if (!/^AX-[A-F0-9]{8}$/.test(normalizedReferenceId || "")) {
+  if (!/^AX-(?:[A-F0-9]{8}|[A-F0-9]{32})$/.test(normalizedReferenceId || "")) {
     return res.status(400).json({
       received: false,
       error: "A valid verification reference is required",
