@@ -5,11 +5,11 @@ module.exports.quarantineEmbed = (member, reason) =>
   new EmbedBuilder()
     .setColor(0xef4444)
     .setDescription(
-      `${E.quarantine} **__Security Action__**\n\n` +
-        `<@${member.id}>, your account has been placed in quarantine.\n\n` +
-        `${E.invisible} ${E.failed} Result: Verification failed\n` +
-        `${E.invisible} ${E.invisible} ${E.warning} **Reason:** \`${String(reason).replaceAll("_", " ")}\`\n` +
-        `${E.invisible} ${E.cooldown} Next step: Contact a server moderator\n\n` +
+      `${E.quarantine} **__Security Action__**\n` +
+        `<@${member.id}>, your account has been placed in quarantine.\n` +
+        `${E.failed} Result: Verification failed\n` +
+        `${E.warning} **Reason:** \`${String(reason).replaceAll("_", " ")}\`\n` +
+        `${E.cooldown} Next step: Contact a server moderator\n` +
         `${E.arrow} *If this was a mistake, include the reason above when asking for help.*`,
     )
     .setTimestamp();
@@ -18,18 +18,18 @@ module.exports.activeCases = (cases) =>
   new EmbedBuilder()
     .setColor(0x7f1d1d)
     .setDescription(
-      `${E.quarantine} **__Active Quarantine Cases — ${cases.length}__**\n\n` +
+      `${E.quarantine} **__Active Quarantine Cases — ${cases.length}__**\n` +
       (cases.length
         ? cases
             .slice(0, 20)
             .map(
               (item) =>
-                `${E.invisible} **__<@${item.user_id}> \`${item.username}\`__**\n` +
-                `${E.invisible} ${E.arrow} **Reason:** \`${String(item.reason).replaceAll("_", " ")}\`\n` +
-                `${E.invisible} ${E.reminder} <t:${Math.floor(new Date(item.created_at).getTime() / 1000)}:R>`,
+                `**__<@${item.user_id}> \`${item.username}\`__**\n` +
+                `${E.arrow} **Reason:** \`${String(item.reason).replaceAll("_", " ")}\`\n` +
+                `${E.reminder} <t:${Math.floor(new Date(item.created_at).getTime() / 1000)}:R>`,
             )
-            .join("\n\n")
-        : `${E.invisible} ${E.success} No active quarantine cases.`
+            .join("\n")
+        : `${E.success} No active quarantine cases.`
       ),
     )
     .setTimestamp();
