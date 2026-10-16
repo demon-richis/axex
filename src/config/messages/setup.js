@@ -301,7 +301,7 @@ const PROGRESS_STEPS = [
 module.exports.progress = (statuses, title = "AxeX Setup Progress") =>
   base(
     0x5865f2,
-    `**__${title}__**\n\n` +
+    `${E.loading} **__${title}__**\n\n` +
       PROGRESS_STEPS.map((label, index) => {
         const item = statuses[index + 1] || { status: "pending", detail: "" };
         const icon =
