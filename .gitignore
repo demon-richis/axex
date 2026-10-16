@@ -1,3 +1,4 @@
 node_modules/
 .env
+app-config.json
 npm-debug.log*
