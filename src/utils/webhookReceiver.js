@@ -4,6 +4,7 @@ const app = express();
 app.use(express.json({ limit: "100kb" }));
 const { sendLiveUpdate } = require("./liveUpdate");
 const { fingerprintPayload } = require("../db/verificationCallbackStore");
+const { getListenPort } = require("../config/runtime");
 
 let server;
 let discordClient;
@@ -67,12 +68,24 @@ async function processRoleUpdateRetries() {
   }
 }
 
+app.disable("x-powered-by");
+
 app.get("/health", (_req, res) => {
   res.json({
     status: discordClient?.isReady() ? "ok" : "starting",
     service: "axex-bot-webhook",
     ready: Boolean(discordClient?.isReady()),
     guilds: discordClient?.guilds.cache.size ?? 0,
+    checkedAt: new Date().toISOString(),
+  });
+});
+
+app.get("/ready", (_req, res) => {
+  const ready = Boolean(discordClient?.isReady());
+  return res.status(ready ? 200 : 503).json({
+    status: ready ? "ready" : "starting",
+    service: "axex-bot-webhook",
+    ready,
     checkedAt: new Date().toISOString(),
   });
 });
@@ -603,12 +616,12 @@ app.post("/webhook/verify-result", async (req, res) => {
   }
 });
 
-function startWebhookReceiver(client) {
+function startWebhookReceiver(client, configuredPort) {
   if (!client)
     throw new Error("Discord client is required to start the webhook receiver");
   discordClient = client;
   if (server) return server;
-  const PORT = Number(process.env.WEBHOOK_PORT) || 3001;
+  const PORT = configuredPort || getListenPort();
   server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`[Axex] Webhook receiver listening on port ${PORT}`);
   });
@@ -621,4 +634,16 @@ function startWebhookReceiver(client) {
   return server;
 }
 
-module.exports = { app, startWebhookReceiver };
+function stopWebhookReceiver() {
+  if (retryTimer) {
+    clearInterval(retryTimer);
+    retryTimer = null;
+  }
+  if (server) {
+    server.close();
+    server = null;
+  }
+  discordClient = null;
+}
+
+module.exports = { app, startWebhookReceiver, stopWebhookReceiver };
