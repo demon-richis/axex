@@ -7,6 +7,7 @@ const memberAdd = require("./src/events/guildMemberAdd");
 const buttonHandler = require("./src/interactions/buttonHandler");
 const commandHandler = require("./src/interactions/commandHandler");
 const modalHandler = require("./src/interactions/modalHandler");
+const E = require("./src/verification/emojis");
 
 if (!process.env.BOT_TOKEN) {
   console.error(
@@ -68,7 +69,7 @@ client.on("interactionCreate", (interaction) => {
 
 
 function logSuccessEmojiAvailability(client) {
-  const match = /^<a?:([^:]+):(\\d+)>$/.exec(E.success);
+  const match = /^<a?:([^:]+):(\d+)>$/.exec(E.success);
   if (!match) {
     console.warn("[Axex Emoji] E.success is not a valid Discord custom emoji reference.");
     return;
