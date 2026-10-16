@@ -35,6 +35,8 @@ test('setup progress uses custom AxeX emojis for every status', () => {
   });
   const description = embed.toJSON().description;
 
+  assert.ok(description.startsWith(E.loading));
+
   for (const icon of [E.loading, E.success, E.failed, E.warning, E.cooldown]) {
     assert.ok(description.includes(icon), `Missing custom status icon ${icon}`);
   }
