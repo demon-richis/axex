@@ -298,25 +298,48 @@ const PROGRESS_STEPS = [
   "Final Validation",
 ];
 
-module.exports.progress = (statuses, title = "AxeX Setup Progress") =>
-  base(
-    0x5865f2,
-    `${E.loading} **__${title}__**\n` +
-      PROGRESS_STEPS.map((label, index) => {
-        const item = statuses[index + 1] || { status: "pending", detail: "" };
-        const icon =
-          item.status === "running"
-            ? E.loading
-            : item.status === "success"
-              ? E.success
-              : item.status === "failed"
-                ? E.failed
-                : item.status === "warning"
-                  ? E.warning
-                  : E.cooldown;
-        return `${index + 1}. ${icon} **${label}**${item.detail ? ` — ${item.detail}` : ""}`;
-      }).join("\n"),
+module.exports.progress = (statuses, title = "AxeX Setup Progress") => {
+  const entries = PROGRESS_STEPS.map((label, index) => ({
+    step: index + 1,
+    label,
+    ...(statuses[index + 1] || { status: "pending", detail: "" }),
+  }));
+  const completed = entries.filter((item) => item.status === "success").length;
+  const failed = entries.filter((item) => item.status === "failed");
+  const warnings = entries.filter((item) => item.status === "warning");
+  const pending = entries.filter((item) => item.status === "pending");
+  const running = entries.find((item) => item.status === "running");
+  const current = running || failed[0] || pending[0] || null;
+  const currentLabel = running
+    ? "Current"
+    : failed.length
+      ? "Stopped at"
+      : pending.length
+        ? "Next"
+        : "Status";
+  const currentValue = current
+    ? `${currentLabel}: **${current.label}**`
+    : "All steps completed";
+  const currentDetail = current?.detail
+    ? ` — ${String(current.detail).slice(0, 140)}`
+    : "";
+  const issueLines = entries
+    .filter((item) => item.status === "failed" || item.status === "warning")
+    .slice(0, 2)
+    .map((item) => `${item.status === "failed" ? E.failed : E.warning} ${item.label}: ${String(item.detail || item.status).slice(0, 140)}`);
+  const percent = Math.round((completed / PROGRESS_STEPS.length) * 100);
+
+  return base(
+    failed.length ? 0xef4444 : warnings.length ? 0xf59e0b : 0x5865f2,
+    [
+      `${E.loading} **__${title}__**`,
+      `${E.success} Completed: \`${completed}/${PROGRESS_STEPS.length}\` (${percent}%) · ${E.cooldown} Pending: \`${pending.length}\``,
+      `${E.failed} Failed: \`${failed.length}\` · ${E.warning} Warnings: \`${warnings.length}\``,
+      `${E.loading} ${currentValue}${currentDetail}`,
+      ...issueLines,
+    ].join("\\n"),
   );
+};
 
 module.exports.failure = (completed, failed) =>
   base(
