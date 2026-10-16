@@ -29,7 +29,7 @@ const expectedCustomEmojis = {
   ban: '<:axex_ban:1556253718276476949>',
   invisible: '<:axex_invisible:1555969322902495283>',
   warning: '<:axex_warning:1555947291259568238>',
-  success: '<:axex_success:1555947271787682315>',
+  success: '<:axex_success:1555947277187682315>',
   antiRaid: '<:axex_anti_raid:1556704987541672099>',
   antiNuke: '<:axex_anti_nuke:1556704985151180992>',
   idCard: '<:axex_id_card:1556704981761917058>',
