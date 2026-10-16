@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, PermissionFlagsBits } = require("discord.js");
 const { initDB } = require("./src/db/client");
 const { syncAllGuilds } = require("./src/utils/syncGuilds");
 const memberAdd = require("./src/events/guildMemberAdd");
@@ -66,9 +66,49 @@ client.on("interactionCreate", (interaction) => {
   }
 });
 
+
+function logSuccessEmojiAvailability(client) {
+  const match = /^<a?:([^:]+):(\\d+)>$/.exec(E.success);
+  if (!match) {
+    console.warn("[Axex Emoji] E.success is not a valid Discord custom emoji reference.");
+    return;
+  }
+
+  const [, name, emojiId] = match;
+  const sourceGuilds = [];
+  const blockedGuilds = [];
+
+  for (const guild of client.guilds.cache.values()) {
+    const emojiIsLocal = guild.emojis.cache.has(emojiId);
+    if (emojiIsLocal) sourceGuilds.push(guild.name);
+
+    const canUseExternal = Boolean(
+      guild.members.me?.permissions?.has(PermissionFlagsBits.UseExternalEmojis),
+    );
+    if (!emojiIsLocal && !canUseExternal) blockedGuilds.push(guild.name);
+  }
+
+  if (sourceGuilds.length) {
+    console.log(
+      `[Axex Emoji] ${name} is present in ${sourceGuilds.length} joined guild emoji cache(s).`,
+    );
+  } else {
+    console.warn(
+      `[Axex Emoji] ${name} (${emojiId}) was not found in any joined guild emoji cache. Verify the ID and source-server access.`,
+    );
+  }
+
+  if (blockedGuilds.length) {
+    console.warn(
+      `[Axex Emoji] ${name} may not render in ${blockedGuilds.length} guild(s) without Use External Emojis permission. Add the custom emoji to those guilds or grant that permission to the Axex bot role in the channels where it posts.`,
+    );
+  }
+}
+
 client.once("ready", async () => {
   await initDB();
   await syncAllGuilds(client);
+  logSuccessEmojiAvailability(client);
   const { startWebhookReceiver } = require("./src/utils/webhookReceiver");
   const {
     startIntelligenceKeepAlive,
