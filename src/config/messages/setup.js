@@ -374,54 +374,45 @@ module.exports.success = ({
   logChannelId,
   portalRegistrationStatus,
   panelStatus,
-}) =>
-  base(
+}) => {
+  const roleMentions = [
+    verifiedRoleId && `<@&${verifiedRoleId}>`,
+    unverifiedRoleId && `<@&${unverifiedRoleId}>`,
+    quarantinedRoleId && `<@&${quarantinedRoleId}>`,
+  ].filter(Boolean);
+  const channelMentions = [
+    verifyChannelId && `<#${verifyChannelId}>`,
+    quarantineChannelId && `<#${quarantineChannelId}>`,
+    logChannelId && `<#${logChannelId}>`,
+  ].filter(Boolean);
+  const resourceActions = [...rolesCreated, ...channelsCreated];
+  const createdCount = resourceActions.filter(
+    (resource) => !String(resource).includes("(existing)"),
+  ).length;
+  const reusedCount = resourceActions.length - createdCount;
+
+  return base(
     0x00ff88,
-    `${E.success} **__AxeX Setup Complete__**\n` +
-      `> ${E.server} **Server:** \`${settings.guildName || "Unknown"}\`\n` +
-      `> ${E.role} **Roles:** ${
-        [
-          verifiedRoleId && `<@&${verifiedRoleId}>`,
-          unverifiedRoleId && `<@&${unverifiedRoleId}>`,
-          quarantinedRoleId && `<@&${quarantinedRoleId}>`,
-        ]
-          .filter(Boolean)
-          .join(", ") ||
-        rolesCreated.join(", ") ||
-        "None"
-      }\n` +
-      `> ${E.channel} **Channels:** ${
-        [
-          verifyChannelId && `<#${verifyChannelId}>`,
-          quarantineChannelId && `<#${quarantineChannelId}>`,
-          logChannelId && `<#${logChannelId}>`,
-        ]
-          .filter(Boolean)
-          .join(", ") ||
-        channelsCreated.join(", ") ||
-        "None"
-      }\n` +
-      `> **Resource actions:** ${
-        [...rolesCreated, ...channelsCreated]
-          .map((resource) =>
-            resource
-              .replace(" (existing)", " (reused/configured)")
-              .replace(
-                /^(?!.*\(reused\/configured\)).+$/,
-                (value) => `${value} (created)`,
-              ),
-          )
-          .join(", ") || "No resource changes"
-      }\n` +
-      (panelStatus
-        ? `> **Verification panel:** ${panelStatus === "created" ? "created" : "existing panel reused"}\n`
-        : "") +
-      (portalRegistrationStatus
-        ? `> **Portal registration:** ${portalRegistrationStatus === "registered" ? "registered" : `${E.warning} not confirmed; bot setup can continue`}\n`
-        : "") +
-      `> **Restricted channels:** \`${channelsUpdated}\` • ${E.newAccount} **Min Age:** \`${settings.minAge ?? 7}d\`\n` +
-      `> ${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` • ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} • ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}\n` +
-      (hierarchyOk
-        ? `*Setup completed successfully*`
-        : `*Warning: Move Axex role to top of hierarchy*`),
+    [
+      `${E.success} **__AxeX Setup Complete__**`,
+      `${E.server} **Server:** \`${settings.guildName || "Unknown"}\``,
+      `${E.role} **Roles:** ${roleMentions.join(" · ") || rolesCreated.join(", ") || "None"}`,
+      `${E.channel} **Channels:** ${channelMentions.join(" · ") || channelsCreated.join(", ") || "None"}`,
+      resourceActions.length
+        ? `${E.creation} Created: \`${createdCount}\` · Reused: \`${reusedCount}\``
+        : null,
+      panelStatus
+        ? `${E.success} **Panel:** ${panelStatus === "created" ? "created" : "existing panel reused"}`
+        : null,
+      portalRegistrationStatus
+        ? `${portalRegistrationStatus === "registered" ? E.success : E.warning} **Portal:** ${portalRegistrationStatus === "registered" ? "registered" : "not confirmed"}`
+        : null,
+      `${E.protected} **Rules:** \`${channelsUpdated}\` restricted channels · Min age \`${settings.minAge ?? 7}d\``,
+      `${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` · ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} · ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}`,
+      hierarchyOk
+        ? `${E.success} Setup completed successfully`
+        : `${E.warning} Move AxeX role to the top of the hierarchy`,
+    ].filter(Boolean).join("\n"),
   );
+};
+
