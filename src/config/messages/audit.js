@@ -51,8 +51,8 @@ function summary(data) {
         : 0xffa500,
     )
     .setDescription(
-      `${E.logs} **__${referenceId ? `Verification Case ${referenceId}` : "Verification Audit Search"}__**\n\n` +
-        `${E.invisible} Complete audit history for the selected case or filters.`,
+      `${E.logs} **__${referenceId ? `Verification Case ${referenceId}` : "Verification Audit Search"}__**\n` +
+        `Complete audit history for the selected case or filters.`,
     )
     .addFields(
       {
@@ -106,13 +106,13 @@ function details(events, referenceId) {
     new EmbedBuilder()
       .setColor(0x676669)
       .setDescription(
-        `${E.logs} **__Verification Details ${index + 1}/${Math.ceil(events.length / 12)}__**\n\n` +
+        `${E.logs} **__Verification Details ${index + 1}/${Math.ceil(events.length / 12)}__**\n` +
         eventChunk
           .map((event, offset) => {
             const eventNumber = index * 12 + offset + 1;
-            return `${E.invisible} ${E.logs} **__${eventNumber}. ${safe(event.action)}__** ${timestamp(event.created_at, "R")}\n${eventDetails(event)}`;
+            return `${E.logs} **__${eventNumber}. ${safe(event.action)}__** ${timestamp(event.created_at, "R")}\n${eventDetails(event)}`;
           })
-          .join("\n\n"),
+          .join("\n"),
       ),
   );
 }
