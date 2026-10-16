@@ -1,30 +1,31 @@
 const { EmbedBuilder } = require("discord.js");
 const E = require("../../verification/emojis");
 
+const MOBILE_EVENTS_PER_EMBED = 4;
+const MOBILE_EVENTS_INLINE = 8;
+
 function safe(value, fallback = "N/A", limit = 500) {
   return String(value ?? fallback)
     .replaceAll("`", "'")
     .replaceAll("\n", " ")
     .slice(0, limit);
 }
+
 function timestamp(value, style = "f") {
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime())
     ? `<t:${Math.floor(date.getTime() / 1000)}:${style}>`
     : "Unknown time";
 }
-function eventDetails(event) {
-  return [
-    `Event ID: \`${safe(event.event_id)}\``,
-    `Action: \`${safe(event.action)}\``,
-    `Reason: ${safe(event.reason, "No reason recorded")}`,
-    `Response: \`${safe(event.click_ms, "N/A")} ms\``,
-    `Account age: \`${safe(event.account_age, "N/A")} days\``,
-    `IP flagged: \`${event.ip_flagged ? "Yes" : "No"}\``,
-    `Raid mode: \`${event.raid_mode ? "Yes" : "No"}\``,
-    `Recorded: ${timestamp(event.created_at, "f")}`,
-  ].join("\n");
+
+function eventDetails(event, eventNumber) {
+  return (
+    `${E.logs} **${eventNumber}. ${safe(event.action)}** · ${timestamp(event.created_at, "R")}\n` +
+    `${E.idCard} \`${safe(event.event_id)}\` · ${E.reminder} ${safe(event.reason, "No reason recorded", 180)}\n` +
+    `${E.timeout} ${safe(event.click_ms, "N/A")} ms · ${E.newAccount} ${safe(event.account_age, "N/A")}d · ${E.warning} IP ${event.ip_flagged ? "Yes" : "No"} · ${E.antiRaid} Raid ${event.raid_mode ? "Yes" : "No"}`
+  );
 }
+
 function chunk(values, size) {
   const result = [];
   for (let index = 0; index < values.length; index += size)
@@ -44,6 +45,19 @@ function summary(data) {
     actions,
     reasons,
   } = data;
+  const ipFlagged = events.filter((event) => event.ip_flagged).length;
+  const raidFlagged = events.filter((event) => event.raid_mode).length;
+  const responseSummary =
+    minResponse === null
+      ? "N/A"
+      : `${minResponse}–${maxResponse} ms`;
+  const actionsSummary = safe(actions.join(", "), "None", 180);
+  const reasonsSummary = safe(reasons.join(" · "), "None", 220);
+  const eventCoverage =
+    events.length > MOBILE_EVENTS_INLINE
+      ? `${E.logs} Showing ${MOBILE_EVENTS_INLINE} of ${events.length} events. Choose JSON format for the full audit.\n`
+      : `${E.success} All ${events.length} matching events are shown below.\n`;
+
   return new EmbedBuilder()
     .setColor(
       last.action === "VERIFIED" || last.action === "CALLBACK_RECEIVED_PASSED"
@@ -51,70 +65,33 @@ function summary(data) {
         : 0xffa500,
     )
     .setDescription(
-      `${E.logs} **__${referenceId ? `Verification Case ${referenceId}` : "Verification Audit Search"}__**\n` +
-        `Complete audit history for the selected case or filters.`,
-    )
-    .addFields(
-      {
-        name: `${E.user} Member`,
-        value: `<@${safe(first.user_id)}> \`${safe(first.username)}\``,
-        inline: true,
-      },
-      { name: `${E.idCard} User ID`, value: `\`${safe(first.user_id)}\``, inline: true },
-      { name: `${E.server} Server ID`, value: `\`${safe(first.guild_id)}\``, inline: true },
-      { name: `${E.logs} Final Action`, value: `\`${safe(last.action)}\``, inline: true },
-      { name: `${E.scan} Total Events`, value: `\`${events.length}\``, inline: true },
-      {
-        name: `${E.warning} Flagged Events`,
-        value: `\`${flaggedEvents.length}\``,
-        inline: true,
-      },
-      {
-        name: `${E.creation} First Recorded`,
-        value: timestamp(first.created_at, "F"),
-        inline: true,
-      },
-      {
-        name: `${E.reminder} Last Recorded`,
-        value: timestamp(last.created_at, "F"),
-        inline: true,
-      },
-      {
-        name: `${E.timeout} Response Times`,
-        value:
-          minResponse === null
-            ? "No response timing recorded"
-            : `Min: \`${minResponse} ms\`\nMax: \`${maxResponse} ms\``,
-        inline: true,
-      },
-      {
-        name: `${E.arrow} Actions Observed`,
-        value: safe(actions.join(", "), "None", 1024),
-        inline: false,
-      },
-      {
-        name: `${E.warning} Reasons Observed`,
-        value: safe(reasons.join(" • "), "None", 1024),
-        inline: false,
-      },
+      `${E.logs} **__${referenceId ? `Case ${referenceId}` : "Verification Audit"}__**\n` +
+      `${E.user} <@${safe(first.user_id)}> \`${safe(first.username)}\`\n` +
+      `${E.idCard} User \`${safe(first.user_id)}\` · ${E.server} Guild \`${safe(first.guild_id)}\`\n` +
+      `${E.webhook} Result \`${safe(last.action)}\` · ${E.scan} Events \`${events.length}\`\n` +
+      `${E.warning} Flags \`${flaggedEvents.length}\` · IP \`${ipFlagged}\` · Raid \`${raidFlagged}\`\n` +
+      `${E.timeout} Response \`${responseSummary}\`\n` +
+      `${E.creation} First ${timestamp(first.created_at, "R")} · ${E.reminder} Last ${timestamp(last.created_at, "R")}\n` +
+      `${E.arrow} Actions: ${actionsSummary}\n` +
+      `${E.warning} Reasons: ${reasonsSummary}\n` +
+      eventCoverage,
     )
     .setTimestamp();
 }
 
-function details(events, referenceId) {
-  return chunk(events, 12).map((eventChunk, index) =>
+function details(events) {
+  return chunk(events, MOBILE_EVENTS_PER_EMBED).map((eventChunk, index) =>
     new EmbedBuilder()
       .setColor(0x676669)
       .setDescription(
-        `${E.logs} **__Verification Details ${index + 1}/${Math.ceil(events.length / 12)}__**\n` +
-        eventChunk
-          .map((event, offset) => {
-            const eventNumber = index * 12 + offset + 1;
-            return `${E.logs} **__${eventNumber}. ${safe(event.action)}__** ${timestamp(event.created_at, "R")}\n${eventDetails(event)}`;
-          })
-          .join("\n"),
+        `${E.logs} **__Audit Details ${index + 1}/${Math.ceil(events.length / MOBILE_EVENTS_PER_EMBED)}__**\n` +
+          eventChunk
+            .map((event, offset) =>
+              eventDetails(event, index * MOBILE_EVENTS_PER_EMBED + offset + 1),
+            )
+            .join("\n"),
       ),
   );
 }
 
-module.exports = { safe, summary, details };
+module.exports = { safe, summary, details, MOBILE_EVENTS_INLINE };
