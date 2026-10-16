@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node index.js",
+    "build": "npm run check",
     "keepalive": "node scripts/keep-intelligence-alive.js",
     "dev": "nodemon index.js",
     "test": "node --test",
