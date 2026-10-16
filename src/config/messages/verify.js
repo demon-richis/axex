@@ -9,8 +9,8 @@ function buildPanel(guildName) {
     .setColor(0x5865F2)
     .setDescription(
       `${E.captcha} **__Verification Required__**\n` +
-        `${E.invisible} ${E.reminder} To access **${guildName}**, you need to pass verification first.\n` +
-        `${E.invisible} ${E.invisible} ${E.arrow} Press **Verify** below to start.`,
+        `${E.reminder} To access **${guildName}**, you need to pass verification first.\n` +
+        `${E.arrow} Press **Verify** below to start.`,
     );
 
   const row = new ActionRowBuilder().addComponents(
