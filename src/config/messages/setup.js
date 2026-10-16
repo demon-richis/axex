@@ -337,7 +337,7 @@ module.exports.progress = (statuses, title = "AxeX Setup Progress") => {
       `${E.failed} Failed: \`${failed.length}\` · ${E.warning} Warnings: \`${warnings.length}\``,
       `${E.loading} ${currentValue}${currentDetail}`,
       ...issueLines,
-    ].join("\\n"),
+    ].join("\n"),
   );
 };
 
