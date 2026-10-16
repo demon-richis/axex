@@ -86,7 +86,7 @@ const guild1 = makeGuild("guild-test");
 const guild2 = makeGuild("guild-other");
 guilds.set(guild1.id, guild1);
 guilds.set(guild2.id, guild2);
-for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine"]) {
+for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine", "user-strong-reference"]) {
   guild1.addMember(id);
 }
 guild2.addMember("user-test");
@@ -221,6 +221,14 @@ test("webhook authentication and reference validation fail closed", async () => 
   assert.equal(invalidReference.status, 400);
   assert.equal(invalidReference.json.code, "INVALID_REFERENCE_ID");
   assert.equal(roles.addCalls, 0);
+});
+
+test("128-bit portal references pass validation and still grant roles once", async () => {
+  const referenceId = `AX-${"A".repeat(32)}`;
+  const beforeAdds = roles.addCalls;
+  const response = await post(body({ referenceId, userId: "user-strong-reference" }));
+  assert.equal(response.status, 200);
+  assert.equal(roles.addCalls, beforeAdds + 1);
 });
 
 test("valid callback grants roles once and sequential duplicate is idempotent", async () => {
