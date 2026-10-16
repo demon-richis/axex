@@ -253,7 +253,7 @@ module.exports.existingResources = (resources) => {
   if (!total) {
     return base(
       0x5865f2,
-      `**__AxeX Setup — No Existing Resources__**\n\n` +
+      `${E.scan} **__AxeX Setup — No Existing Resources__**\n\n` +
         `No existing AxeX roles or channels were found. AxeX is ready to create the required resources.\n\n` +
         `> • Roles found: None\n> • Channels found: None\n\n` +
         `*The next step will create the missing resources.*`,
@@ -262,18 +262,20 @@ module.exports.existingResources = (resources) => {
   const roles = expectedRoles
     .map(
       (name) =>
-        `> • ${foundRoles.has(name) ? `✅ **${name}** — already exists` : `➕ **${name}** — will be created`}`,
+        `> ${foundRoles.has(name) ? E.success : E.creation} **${name}** — ${foundRoles.has(name) ? "already exists" : "will be created"}`,
     )
     .join("\n");
   const channels = expectedChannels
     .map((name) => {
       const channel = resources.channels.find((item) => item.name === name);
-      return `> • ${channel ? `<#${channel.id}> — already exists` : `➕ **#${name}** — will be created`}`;
+      return channel
+        ? `> ${E.success} <#${channel.id}> — already exists`
+        : `> ${E.creation} **#${name}** — will be created`;
     })
     .join("\n");
   return base(
     complete ? 0x00ff88 : 0x5865f2,
-    `${complete ? "**__AxeX Setup — All Resources Found__**" : "**__AxeX Setup — Existing Resources Found__**"}\n\n` +
+    `${complete ? `${E.success} **__AxeX Setup — All Resources Found__**` : `${E.scan} **__AxeX Setup — Existing Resources Found__**`}\n\n` +
       `${complete ? "All expected AxeX resources exist and can be reused/configured." : "Matching resources will be reused/configured; missing resources will be created."}\n\n` +
       `**Roles**\n${roles}\n\n**Channels**\n${channels}\n\n` +
       `*Choose how to continue below.*`,
@@ -304,14 +306,14 @@ module.exports.progress = (statuses, title = "AxeX Setup Progress") =>
         const item = statuses[index + 1] || { status: "pending", detail: "" };
         const icon =
           item.status === "running"
-            ? "⏳"
+            ? E.loading
             : item.status === "success"
-              ? "✅"
+              ? E.success
               : item.status === "failed"
-                ? "❌"
+                ? E.failed
                 : item.status === "warning"
-                  ? "⚠️"
-                  : "▫️";
+                  ? E.warning
+                  : E.cooldown;
         return `${index + 1}. ${icon} **${label}**${item.detail ? ` — ${item.detail}` : ""}`;
       }).join("\n"),
   );
@@ -392,7 +394,7 @@ module.exports.success = ({
         ? `> **Verification panel:** ${panelStatus === "created" ? "created" : "existing panel reused"}\n`
         : "") +
       (portalRegistrationStatus
-        ? `> **Portal registration:** ${portalRegistrationStatus === "registered" ? "registered" : "⚠️ not confirmed; bot setup can continue"}\n`
+        ? `> **Portal registration:** ${portalRegistrationStatus === "registered" ? "registered" : `${E.warning} not confirmed; bot setup can continue`}\n`
         : "") +
       `> ${E.invisible} **Restricted channels:** \`${channelsUpdated}\` • ${E.newAccount} **Min Age:** \`${settings.minAge ?? 7}d\`\n` +
       `> ${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` • ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} • ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}\n` +
