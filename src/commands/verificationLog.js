@@ -104,11 +104,9 @@ async function execute(interaction) {
     actions,
     reasons,
   });
+  const detailEvents = events.slice(0, messages.audit.MOBILE_EVENTS_INLINE);
   await interaction.reply({
-    embeds: [
-      summary,
-      ...messages.audit.details(events, referenceId).slice(0, 9),
-    ],
+    embeds: [summary, ...messages.audit.details(detailEvents)],
     flags: MessageFlags.Ephemeral,
   });
 }
