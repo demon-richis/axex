@@ -34,6 +34,7 @@ const E = {
   vpn: emoji('axex_vpn', '1556253769186943106'),
   timeout: emoji('axex_timeout', '1556253765244424273'),
   role: emoji('axex_role', '1556253761448579072'),
+  staff: emoji('axex_staff', '1561078239101714483'),
 };
 
 // Compatibility aliases used by existing verification and message modules.

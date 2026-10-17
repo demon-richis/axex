@@ -6,7 +6,7 @@ const ID_HELP = 'axex_help';
 
 function buildPanel(guildName) {
   const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
+    .setColor()
     .setDescription(
       `${E.captcha} **__Verification Required__**\n` +
         `${E.invisible} ${E.reminder} To access ***${guildName}***, you need to pass verification first.\n` +
