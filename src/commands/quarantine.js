@@ -65,6 +65,29 @@ async function execute(interaction) {
       return;
     }
     try {
+      const websiteUrl = process.env.WEBSITE_URL;
+      const websiteApiKey = process.env.WEBSITE_API_KEY;
+      if (!websiteUrl || !websiteApiKey) {
+        throw new Error("Verification portal release is not configured");
+      }
+      const releaseResponse = await fetch(
+        `${websiteUrl.replace(/\/$/, "")}/api/bot/release`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": websiteApiKey,
+          },
+          body: JSON.stringify({
+            guildId: interaction.guild.id,
+            userId: member.id,
+          }),
+          signal: AbortSignal.timeout(5000),
+        },
+      );
+      if (!releaseResponse.ok) {
+        throw new Error(`Verification portal release failed (${releaseResponse.status})`);
+      }
       await member.roles.remove(config.quarantined_role_id);
       await member.roles.add(config.unverified_role_id);
       await resolveQuarantineCase(
