@@ -59,8 +59,10 @@ async function syncAllGuilds(client) {
           const panel = await verifyChannel.send(messages.verify.permanentPanel(guild.name));
           await savePanelMessageId(guild.id, panel.id);
           console.log(`[Axex] Refreshed verify panel in ${guild.name}`);
-        } catch {
-          // Ignore message refresh failures; the channel will be retried on next startup.
+        } catch (error) {
+
+          console.error('[Axex] Panel refresh failed:', error);
+
         }
       }
 
