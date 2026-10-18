@@ -113,26 +113,29 @@ module.exports.guildOnly = () => reply(
 
 module.exports.notConfigured = () => reply(
   0xF59E0B,
-  `${E.warning} **__Axex Not Configured__**`,
-  `${E.arrow} Ask a server administrator to complete Axex setup.`,
+  `${E.pending} __**Axex Not Configured**__`,
+  `${E.invisible} ${E.warning} Axex hasn't been set up on this server yet.\n` +
+    `${E.invisible} ${E.reminder} Ask a server administrator to complete the setup.`,
 );
 
 module.exports.alreadyVerified = () => reply(
   0x57F287,
-  `${E.verified} **__Already Verified__**`,
-  `${E.arrow} You already have access to this server.`,
+  `${E.verified} __**Already Verified**__`,
+  `${E.invisible} ${E.success} You're already verified on this server.\n` +
+    `${E.invisible} ${E.server} No further action is needed.`,
 );
 
 module.exports.sessionAlreadyActive = () => reply(
   0xF59E0B,
-  `${E.cooldown} **__Verification In Progress__**`,
-  `${E.arrow} Finish your current verification session before requesting another link.`,
+  `${E.cooldown} __**Verification In Progress...**__`,
+  `${E.invisible} ${E.reminder} You already have an active verification session.\n` +
+    `${E.invisible} ${E.link} Finish it before requesting another link.`,
 );
 
 module.exports.attemptsExhausted = (attempts, reason) => reply(
   0x7F1D1D,
-  `${E.protected} **__Verification Attempts Exhausted__**`,
-  `${E.failed} You have used all **${attempts}/3 attempts**.\n` +
-    `${E.arrow} **Reason:** ${String(reason || "Verification failed").replaceAll("_", " ")}\n` +
-    `${E.quarantine} Your account has been quarantined. Contact a server moderator for help.`,
+  `${E.protected} __**Attempts Exhausted**__`,
+  `${E.invisible} ${E.failed} You have used all **${attempts}/3** attempts.\n` +
+    `${E.invisible} ${E.logs}  **Reason:** ${String(reason).replaceAll('_', ' ')}\n` +
+    `-# ${E.invisible} ${E.quarantine} Account quarantined · Contact a server moderator`,
 );
