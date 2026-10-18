@@ -6,6 +6,7 @@ const { syncAllGuilds } = require("./src/utils/syncGuilds");
 const memberAdd = require("./src/events/guildMemberAdd");
 const buttonHandler = require("./src/interactions/buttonHandler");
 const commandHandler = require("./src/interactions/commandHandler");
+const { startOutboxPoller, stopOutboxPoller } = require("./src/utils/outboxPoller");
 const modalHandler = require("./src/interactions/modalHandler");
 const E = require("./src/verification/emojis");
 const { validateRuntimeEnvironment } = require("./src/config/runtime");
@@ -82,6 +83,7 @@ async function start() {
       logSuccessEmojiAvailability(client);
       const { startIntelligenceKeepAlive } = require("./src/utils/intelligenceKeepAlive");
       startIntelligenceKeepAlive();
+            startOutboxPoller();
       console.log(`Axex online — ${client.user.tag}`);
       console.log(`Serving ${client.guilds.cache.size} server(s)`);
     } catch (error) {
@@ -94,6 +96,7 @@ async function start() {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`[Axex] Shutting down (exit ${exitCode})`);
+        stopOutboxPoller();
     stopWebhookReceiver();
     client.destroy();
     if (exitCode) process.exitCode = exitCode;
