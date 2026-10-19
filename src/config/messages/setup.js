@@ -15,19 +15,19 @@ function base(color, description) {
 module.exports.alreadySetup = () =>
   base(
     0xffa500,
-    `${E.scan} **__Already Configured__**\n` +
-      `${E.warning} Axex is already set up on this server.\n` +
-      `*Reconfigure to reset settings*`,
+    `${E.scan} __**Already Configured**__\n` +
+      `${E.invisible} ${E.warning} Axex is already set up on this server.\n` +
+      `-# ${E.invisible} ${E.arrow} Reconfigure to reset settings.`,
   );
 
 module.exports.configureRolesPrompt = (token) => ({
   embeds: [
     base(
       0x5865f2,
-      `${E.creation} **__Axex Setup — Step 1__**\n` +
-        `${E.reminder} Select the role(s) assigned to regular members.\n` +
-        `${E.arrow} Click the button below, then select the member role(s).\n` +
-        `*You can select up to 25 manageable roles*`,
+      `${E.creation} __**Axex Setup — Step 1**__\n` +
+        `${E.invisible} ${E.role} Select the role(s) given to **regular members**.\n` +
+        `${E.invisible} ${E.arrow} Press **Configure Roles**, then pick up to 25 roles.\n` +
+        `-# ${E.invisible} ${E.reminder} Only roles below Axex in the hierarchy can be selected.`,
     ),
   ],
   components: [
@@ -100,9 +100,10 @@ module.exports.confirmDeleteResources = (token) => ({
   embeds: [
     base(
       0xff0000,
-      `${E.warning} **__Confirm Delete & Recreate__**\n` +
-        `This permanently removes the matching AxeX roles and channels listed in the previous message.\n` +
-        `Choose **Confirm Delete & Recreate** only if you intend to remove and replace them.`,
+      `${E.warning} __**Confirm Delete & Recreate**__\n` +
+        `${E.invisible} ${E.ban} This **permanently deletes** the matching AxeX roles and channels listed above.\n` +
+        `${E.invisible} ${E.reminder} They will be removed and replaced with fresh ones.\n` +
+        `-# ${E.invisible} ${E.warning} Press **Confirm Delete & Recreate** only if you are sure.`,
     ),
   ],
   components: [
@@ -150,7 +151,8 @@ module.exports.rolesMenu = (guild, token) => {
     embeds: [
       base(
         0x5865f2,
-        `${E.creation} **__Select Member Roles__**\nChoose the role(s) Axex should preserve for regular members.`,
+        `${E.creation} __**Select Member Roles**__\n` +
+          `${E.invisible} ${E.role} Choose the role(s) Axex should preserve for regular members.`,
       ),
     ],
     components: [
@@ -168,75 +170,74 @@ module.exports.rolesMenu = (guild, token) => {
 module.exports.invalidRoleIds = () =>
   base(
     0xff0000,
-    `${E.warning} **__Invalid Member Roles__**\n` +
-      `${E.arrow} Select at least one manageable role from the dropdown.\n` +
-      `*The role must be below Axex in the Discord role hierarchy*`,
+    `${E.warning} __**Invalid Member Roles**__\n` +
+      `${E.invisible} ${E.role} Select at least one manageable role from the dropdown.\n` +
+      `-# ${E.invisible} ${E.arrow} The role must be below Axex in the role hierarchy.`,
   );
 
 module.exports.saveRolesFailed = () =>
   base(
     0xff0000,
-    `${E.failed} **__Roles Not Saved__**\n` +
-      `Could not save roles to the database.\n` +
-      `*Check bot permissions and try again*`,
+    `${E.failed} __**Roles Not Saved**__\n` +
+      `${E.invisible} ${E.webhook} Could not save the roles to the database.\n` +
+      `-# ${E.invisible} ${E.reminder} Check bot permissions and try again.`,
   );
 
 module.exports.roleHierarchyWarn = () =>
   base(
     0xffa500,
-    `${E.scan} **__Role Hierarchy Warning__**\n` +
-      `${E.warning} Axex bot role is not at the top of the role hierarchy.\n` +
-      `${E.arrow} Axex cannot manage roles above its highest role.\n` +
-      `${E.arrow} Verification role changes may fail.\n` +
-      `*Move Axex role to the top*`,
+    `${E.scan} __**Role Hierarchy Warning**__\n` +
+      `${E.invisible} ${E.warning} Axex's role is not at the top of the hierarchy.\n` +
+      `${E.invisible} ${E.role} It cannot manage roles above its own highest role.\n` +
+      `-# ${E.invisible} ${E.arrow} Move the Axex role to the top.`,
   );
 
 module.exports.cancelled = () =>
   base(
     0x888888,
-    `${E.failed} **__Setup Cancelled__**\n` +
-      `No Axex roles or channels were changed.\n` +
-      `*Run \`/vsetup\` to restart*`,
+    `${E.failed} __**Setup Cancelled**__\n` +
+      `${E.invisible} ${E.success} No roles or channels were changed.\n` +
+      `-# ${E.invisible} ${E.arrow} Run \`/vsetup\` to start again.`,
   );
 
 module.exports.confirmationExpired = () =>
   base(
     0x888888,
-    `${E.failed} **__Setup Session Ended__**\n` +
-      `This setup session is no longer active.\n` +
-      `*Run \`/vsetup\` again*`,
+    `${E.timeout} __**Setup Session Ended**__\n` +
+      `${E.invisible} ${E.reminder} This setup session is no longer active.\n` +
+      `-# ${E.invisible} ${E.arrow} Run \`/vsetup\` again.`,
   );
 
 module.exports.notSetupOwner = () =>
   base(
     0xff0000,
-    `${E.warning} **__Not Your Setup__**\n` +
-      `Only the administrator who started setup can use these buttons.\n` +
-      `*Ask them to continue*`,
+    `${E.protected} __**Not Your Setup**__\n` +
+      `${E.invisible} ${E.user} Only the admin who started setup can use these buttons.\n` +
+      `-# ${E.invisible} ${E.reminder} Ask them to continue.`,
   );
 
 module.exports.permissionDenied = () =>
   base(
     0xff0000,
-    `${E.protected} **__Permission Required__**\n` +
-      `You need **Manage Server** to run \`/vsetup\`.\n` +
-      `*Ask an admin for access*`,
+    `${E.protected} __**Permission Required**__\n` +
+      `${E.invisible} ${E.staff} You need **Manage Server** to run \`/vsetup\`.\n` +
+      `-# ${E.invisible} ${E.reminder} Ask an admin for access.`,
   );
 
 module.exports.guildOnly = () =>
   base(
     0xff0000,
-    `${E.warning} **__Server Only__**\n` +
-      `Axex setup can only run inside a server.\n` +
-      `*Use it in a guild channel*`,
+    `${E.server} __**Server Only**__\n` +
+      `${E.invisible} ${E.warning} Axex setup can only run inside a server.\n` +
+      `-# ${E.invisible} ${E.arrow} Use it in a server channel.`,
   );
 
 module.exports.commandUnavailable = () =>
   base(
     0x888888,
-    `${E.warning} **__Command Unavailable__**\n` +
-      `That Axex command is not available.\n` +
-      `*Check \`/help\` for commands*`,
+    `${E.warning} __**Command Unavailable**__\n` +
+      `${E.invisible} ${E.help} That Axex command is not available.\n` +
+      `-# ${E.invisible} ${E.arrow} Check \`/help\` for commands.`,
   );
 
 module.exports.existingResources = (resources) => {
@@ -253,32 +254,34 @@ module.exports.existingResources = (resources) => {
   if (!total) {
     return base(
       0x5865f2,
-      `${E.scan} **__AxeX Setup — No Existing Resources__**\n` +
-        `No existing AxeX roles or channels were found. AxeX is ready to create the required resources.\n` +
-        `> • Roles found: None\n> • Channels found: None\n` +
-        `*The next step will create the missing resources.*`,
+      `${E.scan} __**AxeX Setup — No Existing Resources**__\n` +
+        `${E.invisible} ${E.success} No existing AxeX roles or channels were found. AxeX is ready to create the required resources.\n` +
+        `${E.invisible} ${E.role} Roles found: None\n` +
+        `${E.invisible} ${E.channel} Channels found: None\n` +
+        `-# ${E.invisible} ${E.arrow} The next step creates the missing resources.`,
     );
   }
   const roles = expectedRoles
     .map(
       (name) =>
-        `> ${foundRoles.has(name) ? E.success : E.creation} **${name}** — ${foundRoles.has(name) ? "already exists" : "will be created"}`,
+        `${E.invisible} ${E.invisible} ${foundRoles.has(name) ? E.success : E.creation} **${name}** — ${foundRoles.has(name) ? "already exists" : "will be created"}`,
     )
     .join("\n");
   const channels = expectedChannels
     .map((name) => {
       const channel = resources.channels.find((item) => item.name === name);
       return channel
-        ? `> ${E.success} <#${channel.id}> — already exists`
-        : `> ${E.creation} **#${name}** — will be created`;
+        ? `${E.invisible} ${E.invisible} ${E.success} <#${channel.id}> — already exists`
+        : `${E.invisible} ${E.invisible} ${E.creation} **#${name}** — will be created`;
     })
     .join("\n");
   return base(
     complete ? 0x00ff88 : 0x5865f2,
-    `${complete ? `${E.success} **__AxeX Setup — All Resources Found__**` : `${E.scan} **__AxeX Setup — Existing Resources Found__**`}\n` +
-      `${complete ? "All expected AxeX resources exist and can be reused/configured." : "Matching resources will be reused/configured; missing resources will be created."}\n` +
-      `**Roles**\n${roles}\n**Channels**\n${channels}\n` +
-      `*Choose how to continue below.*`,
+    `${complete ? `${E.success} __**AxeX Setup — All Resources Found**__` : `${E.scan} __**AxeX Setup — Existing Resources Found**__`}\n` +
+      `${E.invisible} ${E.reminder} ${complete ? "All expected AxeX resources exist and can be reused/configured." : "Matching resources will be reused/configured; missing resources will be created."}\n` +
+      `${E.invisible} ${E.role} **Roles**\n${roles}\n` +
+      `${E.invisible} ${E.channel} **Channels**\n${channels}\n` +
+      `-# ${E.invisible} ${E.arrow} Choose how to continue below.`,
   );
 };
 
@@ -326,16 +329,16 @@ module.exports.progress = (statuses, title = "AxeX Setup Progress") => {
   const issueLines = entries
     .filter((item) => item.status === "failed" || item.status === "warning")
     .slice(0, 2)
-    .map((item) => `${item.status === "failed" ? E.failed : E.warning} ${item.label}: ${String(item.detail || item.status).slice(0, 140)}`);
+    .map((item) => `${E.invisible} ${E.invisible} ${item.status === "failed" ? E.failed : E.warning} ${item.label}: ${String(item.detail || item.status).slice(0, 140)}`);
   const percent = Math.round((completed / PROGRESS_STEPS.length) * 100);
 
   return base(
     failed.length ? 0xef4444 : warnings.length ? 0xf59e0b : 0x5865f2,
     [
-      `${E.loading} **__${title}__**`,
-      `${E.success} Completed: \`${completed}/${PROGRESS_STEPS.length}\` (${percent}%) · ${E.cooldown} Pending: \`${pending.length}\``,
-      `${E.failed} Failed: \`${failed.length}\` · ${E.warning} Warnings: \`${warnings.length}\``,
-      `${E.loading} ${currentValue}${currentDetail}`,
+      `${E.loading} __**${title}**__`,
+      `${E.invisible} ${E.loading} ${currentValue}${currentDetail}`,
+      `${E.invisible} ${E.success} Completed: \`${completed}/${PROGRESS_STEPS.length}\` (${percent}%) · ${E.cooldown} Pending: \`${pending.length}\``,
+      `-# ${E.invisible} ${E.failed} Failed: \`${failed.length}\` · ${E.warning} Warnings: \`${warnings.length}\``,
       ...issueLines,
     ].join("\n"),
   );
@@ -344,20 +347,20 @@ module.exports.progress = (statuses, title = "AxeX Setup Progress") => {
 module.exports.failure = (completed, failed) =>
   base(
     0xff0000,
-    `${E.warning} **__Axex Setup Error__**\n` +
-      `Setup stopped before Axex could be safely enabled.\n` +
-      `> • Completed: ${completed?.join(", ").slice(0, 1024) || "Nothing"}\n` +
-      `> • Failed: ${failed?.join(", ").slice(0, 1024) || "Unknown error"}\n` +
-      `*No success is claimed. Correct the listed issue, then rerun setup; completed resources are safe to reuse.*`,
+    `${E.failed} __**Axex Setup Error**__\n` +
+      `${E.invisible} ${E.warning} Setup stopped before Axex could be safely enabled.\n` +
+      `${E.invisible} ${E.success} **Completed:** ${completed?.join(", ").slice(0, 1024) || "Nothing"}\n` +
+      `${E.invisible} ${E.failed} **Failed:** ${failed?.join(", ").slice(0, 1024) || "Unknown error"}\n` +
+      `-# ${E.invisible} ${E.reminder} No success is claimed. Fix the issue and rerun setup, completed resources are safe to reuse.`,
   );
 
 module.exports.serverReady = () =>
   base(
     0x00ff88,
-    `${E.success} **__Axex Security Active__**\n` +
-      `This server is now protected by **Axex Security**.\n` +
-      `> • New members must verify before access\n` +
-      `> • A verification panel has been posted`,
+    `${E.protected} __**Axex Security Active**__\n` +
+      `${E.invisible} ${E.success} This server is now protected by **Axex Security**.\n` +
+      `${E.invisible} ${E.verify} New members must verify before they get access.\n` +
+      `-# ${E.invisible} ${E.captcha} A verification panel has been posted.`,
   );
 
 module.exports.success = ({
@@ -394,25 +397,24 @@ module.exports.success = ({
   return base(
     0x00ff88,
     [
-      `${E.success} **__AxeX Setup Complete__**`,
-      `${E.server} **Server:** \`${settings.guildName || "Unknown"}\``,
-      `${E.role} **Roles:** ${roleMentions.join(" · ") || rolesCreated.join(", ") || "None"}`,
-      `${E.channel} **Channels:** ${channelMentions.join(" · ") || channelsCreated.join(", ") || "None"}`,
+      `${E.success} __**AxeX Setup Complete**__`,
+      `${E.invisible} ${E.server} **Server:** \`${settings.guildName || "Unknown"}\``,
+      `${E.invisible} ${E.role} **Roles:** ${roleMentions.join(" · ") || rolesCreated.join(", ") || "None"}`,
+      `${E.invisible} ${E.channel} **Channels:** ${channelMentions.join(" · ") || channelsCreated.join(", ") || "None"}`,
       resourceActions.length
-        ? `${E.creation} Created: \`${createdCount}\` · Reused: \`${reusedCount}\``
+        ? `${E.invisible} ${E.creation} **Created:** \`${createdCount}\` · **Reused:** \`${reusedCount}\``
         : null,
       panelStatus
-        ? `${E.success} **Panel:** ${panelStatus === "created" ? "created" : "existing panel reused"}`
+        ? `${E.invisible} ${E.captcha} **Panel:** ${panelStatus === "created" ? "created" : "existing panel reused"}`
         : null,
       portalRegistrationStatus
-        ? `${portalRegistrationStatus === "registered" ? E.success : E.warning} **Portal:** ${portalRegistrationStatus === "registered" ? "registered" : "not confirmed"}`
+        ? `${E.invisible} ${portalRegistrationStatus === "registered" ? E.success : E.warning} **Portal:** ${portalRegistrationStatus === "registered" ? "registered" : "not confirmed"}`
         : null,
-      `${E.protected} **Rules:** \`${channelsUpdated}\` restricted channels · Min age \`${settings.minAge ?? 7}d\``,
-      `${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` · ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} · ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}`,
+      `${E.invisible} ${E.protected} **Rules:** \`${channelsUpdated}\` restricted channels · Min age \`${settings.minAge ?? 7}d\``,
+      `${E.invisible} ${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` · ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} · ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}`,
       hierarchyOk
-        ? `${E.success} Setup completed successfully`
-        : `${E.warning} Move AxeX role to the top of the hierarchy`,
+        ? `-# ${E.invisible} ${E.success} Setup completed successfully`
+        : `-# ${E.invisible} ${E.warning} Move the AxeX role to the top of the hierarchy`,
     ].filter(Boolean).join("\n"),
   );
 };
-

@@ -20,9 +20,9 @@ function timestamp(value, style = "f") {
 
 function eventDetails(event, eventNumber) {
   return (
-    `${E.logs} **${eventNumber}. ${safe(event.action)}** · ${timestamp(event.created_at, "R")}\n` +
-    `${E.idCard} \`${safe(event.event_id)}\` · ${E.reminder} ${safe(event.reason, "No reason recorded", 180)}\n` +
-    `${E.timeout} ${safe(event.click_ms, "N/A")} ms · ${E.newAccount} ${safe(event.account_age, "N/A")}d · ${E.warning} IP ${event.ip_flagged ? "Yes" : "No"} · ${E.antiRaid} Raid ${event.raid_mode ? "Yes" : "No"}`
+    `${E.invisible} ${E.logs} **${eventNumber}. ${safe(event.action)}** · ${timestamp(event.created_at, "R")}\n` +
+    `${E.invisible} ${E.invisible} ${E.idCard} \`${safe(event.event_id)}\` · ${E.reminder} ${safe(event.reason, "No reason recorded", 180)}\n` +
+    `-# ${E.invisible} ${E.invisible} ${E.timeout} ${safe(event.click_ms, "N/A")} ms · ${E.newAccount} ${safe(event.account_age, "N/A")}d · ${E.warning} IP ${event.ip_flagged ? "Yes" : "No"} · ${E.antiRaid} Raid ${event.raid_mode ? "Yes" : "No"}`
   );
 }
 
@@ -57,21 +57,21 @@ function summary(data) {
   const reasonsSummary = safe(reasons.join(" · "), "None", 220);
   const eventCoverage =
     events.length > MOBILE_EVENTS_INLINE
-      ? `${E.logs} Showing ${MOBILE_EVENTS_INLINE} of ${events.length} events. Choose JSON format for the full audit.`
-      : `${E.success} All ${events.length} matching events are shown below.`;
+      ? `-# ${E.invisible} ${E.logs} Showing ${MOBILE_EVENTS_INLINE} of ${events.length} events. Choose JSON format for the full audit.`
+      : `-# ${E.invisible} ${E.success} All ${events.length} matching events are shown below.`;
 
   return new EmbedBuilder()
     .setColor(isPassed ? 0x57f287 : 0xffa500)
     .setDescription(
-      `${E.logs} **__${referenceId ? `Case ${referenceId}` : "Verification Audit"}__**\n` +
-      `${E.user} <@${safe(first.user_id)}> \`${safe(first.username)}\`\n` +
-      `${E.idCard} User \`${safe(first.user_id)}\` · ${E.server} Guild \`${safe(first.guild_id)}\`\n` +
-      `${isPassed ? E.success : E.webhook} Result \`${safe(last.action)}\` · ${E.scan} Events \`${events.length}\`\n` +
-      `${E.warning} Flags \`${flaggedEvents.length}\` · IP \`${ipFlagged}\` · Raid \`${raidFlagged}\`\n` +
-      `${E.timeout} Response \`${responseSummary}\`\n` +
-      `${E.creation} First ${timestamp(first.created_at, "R")} · ${E.reminder} Last ${timestamp(last.created_at, "R")}\n` +
-      `${E.arrow} Actions: ${actionsSummary}\n` +
-      `${E.warning} Reasons: ${reasonsSummary}\n` +
+      `${E.logs} __**${referenceId ? `Case ${referenceId}` : "Verification Audit"}**__\n` +
+      `${E.invisible} ${E.user} <@${safe(first.user_id)}> \`${safe(first.username)}\`\n` +
+      `${E.invisible} ${E.idCard} User \`${safe(first.user_id)}\` · ${E.server} Guild \`${safe(first.guild_id)}\`\n` +
+      `${E.invisible} ${isPassed ? E.success : E.webhook} Result \`${safe(last.action)}\` · ${E.scan} Events \`${events.length}\`\n` +
+      `${E.invisible} ${E.warning} Flags \`${flaggedEvents.length}\` · IP \`${ipFlagged}\` · Raid \`${raidFlagged}\`\n` +
+      `${E.invisible} ${E.timeout} Response \`${responseSummary}\`\n` +
+      `${E.invisible} ${E.creation} First ${timestamp(first.created_at, "R")} · ${E.reminder} Last ${timestamp(last.created_at, "R")}\n` +
+      `${E.invisible} ${E.arrow} Actions: ${actionsSummary}\n` +
+      `${E.invisible} ${E.warning} Reasons: ${reasonsSummary}\n` +
       eventCoverage,
     )
     .setTimestamp();
@@ -82,7 +82,7 @@ function details(events) {
     new EmbedBuilder()
       .setColor(0x676669)
       .setDescription(
-        `${E.logs} **__Audit Details ${index + 1}/${Math.ceil(events.length / MOBILE_EVENTS_PER_EMBED)}__**\n` +
+        `${E.logs} __**Audit Details ${index + 1}/${Math.ceil(events.length / MOBILE_EVENTS_PER_EMBED)}**__\n` +
           eventChunk
             .map((event, offset) =>
               eventDetails(event, index * MOBILE_EVENTS_PER_EMBED + offset + 1),

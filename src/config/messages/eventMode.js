@@ -9,40 +9,42 @@ function base(color, description) {
 
 module.exports.enabled = (hours) => base(
   0x57F287,
-  `${E.creation} **__Event Mode Enabled__**\n` +
-  `${E.success} Account age check has been disabled.\n` +
-  `${E.reminder} **Auto-disable:** In ${hours} hour(s).\n` +
-  `${E.arrow} Timing check and honeypot remain active.`
+  `${E.creation} __**Event Mode Enabled**__\n` +
+  `${E.invisible} ${E.success} Account age check has been **disabled.**\n` +
+  `${E.invisible} ${E.antiRaid} Timing check and honeypot stay **active.**\n` +
+  `-# ${E.invisible} ${E.timeout} Turns off automatically in ${hours} hour(s).`
 );
 
 module.exports.disabled = () => base(
   0x64748B,
-  `${E.creation} **__Event Mode Disabled__**\n` +
-  `${E.success} Normal verification has been restored.\n` +
-  `${E.arrow} All verification checks are active.`
+  `${E.creation} __**Event Mode Disabled**__\n` +
+  `${E.invisible} ${E.success} Normal verification has been **restored.**\n` +
+  `-# ${E.invisible} ${E.protected} All verification checks are active.`
 );
 
 module.exports.invalidHours = () => base(
   0xF59E0B,
-  `${E.warning} **__Invalid Event Duration__**\n` +
-  `${E.arrow} Choose a duration between **1 and 24 hours** when enabling event mode.`
+  `${E.warning} __**Invalid Duration**__\n` +
+  `${E.invisible} ${E.timeout} Choose a duration between **1 and 24 hours**.\n` +
+  `-# ${E.invisible} ${E.arrow} A duration is required when enabling event mode.`
 );
 
 module.exports.permissionDenied = () => base(
   0xEF4444,
-  `${E.protected} **__Permission Required__**\n` +
-  `${E.warning} You need the **Manage Server** permission to use this command.`
+  `${E.protected} __**Permission Required**__\n` +
+  `${E.invisible} ${E.staff} Event mode needs the **Manage Server** permission.\n` +
+  `-# ${E.invisible} ${E.reminder} Ask a server administrator for access.`
 );
 
 module.exports.guildOnly = () => base(
   0xEF4444,
-  `${E.server} **__Server Only__**\n` +
-  `${E.arrow} Event mode can only be changed inside a Discord server.`
+  `${E.server} __**Server Only**__\n` +
+  `${E.invisible} ${E.creation} Event mode can only be changed inside a *server*.`
 );
 
 module.exports.storageFailure = () => base(
   0xEF4444,
-  `${E.failed} **__Event Mode Not Changed__**\n` +
-  `${E.warning} Axex could not save the event mode state.\n` +
-  `${E.arrow} Please try again.`
+  `${E.failed} __**Event Mode Not Changed**__\n` +
+  `${E.invisible} ${E.warning} Axex couldn't save the event mode state.\n` +
+  `-# ${E.invisible} ${E.reminder} Nothing was changed. Please try again.`
 );

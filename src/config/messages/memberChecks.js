@@ -14,32 +14,36 @@ function message(color, title, description) {
 
 module.exports.alreadyVerified = () => message(
   0x57F287,
-  `${E.verified} **__Already Verified__**`,
-  `${E.success} You already have access to this server.`
+  `${E.verified} __**Already Verified**__`,
+  `${E.invisible} ${E.role} Your **Verified** role is already active.\n` +
+  `-# ${E.invisible} ${E.server} No further action is needed.`
 );
 
 module.exports.alreadyQuarantined = () => message(
   0x7F1D1D,
-  `${E.quarantine} **__Account Quarantined__**`,
-  `${E.protected} Your account is currently quarantined.\n` +
-  `${E.arrow} Contact a server moderator to appeal.`
+  `${E.quarantine} __**Account Quarantined**__`,
+  `${E.invisible} ${E.protected} Your account is currently **quarantined.**\n` +
+  `${E.invisible} ${E.staff} A server moderator can review your case.\n` +
+  `-# ${E.invisible} ${E.reminder} Contact a moderator to appeal.`
 );
 
 module.exports.sessionActive = () => message(
   0xF59E0B,
-  `${E.cooldown} **__Verification In Progress__**`,
-  `${E.reminder} You already have an active verification session.\n` +
-  `${E.arrow} Complete your current session before requesting another.`
+  `${E.cooldown} __**Already In Progress**__`,
+  `${E.invisible} ${E.verify} A verification session is already running for you.\n` +
+  `${E.invisible} ${E.arrow} Use the link you already received.\n` +
+  `-# ${E.invisible} ${E.timeout} Links expire after 10 minutes.`
 );
 
 module.exports.ownerSkipped = () => message(
   0xFFD700,
-  `${E.owner} **__Server Owner Detected__**`,
-  `${E.success} You are the **Server Owner**.\n` +
-  `${E.arrow} Verification is not required for your account.\n` +
-  `${E.arrow} You already have full server access.`
+  `${E.owner} __**Server Owner Detected**__`,
+  `${E.invisible} ${E.success} You're the **Server Owner**, so verification is skipped.\n` +
+  `-# ${E.invisible} ${E.server} You already have full access to the *server*.`
 );
 
 module.exports.joinPing = (userId) => ({
-  content: `${E.captcha} <@${userId}> — Click the **Verify** button above to access the server.`
+  content:
+    `${E.captcha} Welcome <@${userId}>!\n` +
+    `${E.invisible} ${E.arrow} Press **Verify** above to access the server.`
 });
