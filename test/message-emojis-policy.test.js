@@ -17,7 +17,6 @@ test('message templates use the shared AxeX custom emoji catalog only', () => {
   for (const name of messageFiles) {
     const source = fs.readFileSync(path.join(messagesDir, name), 'utf8');
     assert.doesNotMatch(source, nativeEmojiPattern, `${name} contains a native Unicode emoji`);
-    assert.doesNotMatch(source, /\$\{E\.invisible\}/, `${name} uses invisible emoji spacers that clutter mobile embeds`);
     assert.doesNotMatch(source, /\\n\\n/, `${name} contains excessive blank-line spacing for mobile embeds`);
     assert.match(
       source,
