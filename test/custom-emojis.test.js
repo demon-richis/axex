@@ -63,7 +63,7 @@ test('verification panel uses AxeX custom emojis and preserves its buttons', () 
 
   assert.ok(description.includes(E.captcha));
   assert.ok(description.includes(E.reminder));
-  assert.ok(!description.includes(E.invisible), 'Compact panel should not include a spacer emoji');
+  assert.ok(description.includes(E.invisible), 'Panel uses the invisible spacer emoji for its staircase layout');
   assert.ok(description.includes(E.arrow));
   assert.ok(description.includes('Verification Required'));
   assert.ok(description.includes('AxeX QA Lab'));
