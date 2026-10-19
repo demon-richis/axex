@@ -43,54 +43,53 @@ module.exports.verificationCase = (state) => {
         : 0x5865f2;
   const member = state.member;
   const lines = [
-    `${statusEmoji} **__Verification Case__**`,
-    "",
-    `> ${E.user} **User:** ${member ? `<@${member.id}> \`${safe(member.user?.tag)}\`` : "Unknown"}`,
-    `> ${E.idCard} **User ID:** \`${safe(member?.id)}\``,
-    `> ${E.logs} **Case ID:** \`${safe(state.referenceId)}\``,
-    `> ${E.webhook} **Status:** \`${result}\``,
+    `${statusEmoji} __**Verification Case**__`,
+    `${E.invisible} ${E.user} **User:** ${member ? `<@${member.id}> \`${safe(member.user?.tag)}\`` : "Unknown"}`,
+    `${E.invisible} ${E.idCard} **User ID:** \`${safe(member?.id)}\``,
+    `${E.invisible} ${E.logs} **Case ID:** \`${safe(state.referenceId)}\``,
+    `${E.invisible} ${E.webhook} **Status:** \`${result}\``,
   ];
   if (
     state.accountAge !== undefined ||
     state.clickMs !== undefined ||
     final?.attempts !== undefined
   ) {
-    lines.push("", `${E.scan} __**Verification details**__`);
+    lines.push(`${E.scan} __**Verification Details**__`);
     if (state.accountAge !== undefined)
       lines.push(
-        `> ${E.newAccount} **Account age:** \`${safe(state.accountAge, "N/A")} days\``,
+        `${E.invisible} ${E.newAccount} **Account age:** \`${safe(state.accountAge, "N/A")} days\``,
       );
     if (state.clickMs !== undefined && state.clickMs !== null)
       lines.push(
-        `> ${E.loading} **Response time:** \`${safe(state.clickMs)} ms\``,
+        `${E.invisible} ${E.loading} **Response time:** \`${safe(state.clickMs)} ms\``,
       );
     if (final?.attempts !== undefined)
-      lines.push(`> ${E.timeout} **Attempt:** \`${safe(final.attempts)}\``);
+      lines.push(`${E.invisible} ${E.timeout} **Attempt:** \`${safe(final.attempts)}\``);
     if (final?.reason)
-      lines.push(`> ${E.warning} **Reason:** \`${safe(final.reason)}\``);
+      lines.push(`${E.invisible} ${E.warning} **Reason:** \`${safe(final.reason)}\``);
   }
   if (state.intelligence) {
     const intelligence = state.intelligence;
-    lines.push("", `${E.idCard} __**Account intelligence**__`);
+    lines.push(`${E.vpn} __**Account Intelligence**__`);
     lines.push(
-      `> ${E.vpn} **Risk:** \`${safe(intelligence.riskLevel, "unknown").toUpperCase()}\` • \`${safe(intelligence.riskScore)} / 100\``,
+      `${E.invisible} ${E.scan} **Risk:** \`${safe(intelligence.riskLevel, "unknown").toUpperCase()}\` • \`${safe(intelligence.riskScore)} / 100\``,
     );
     lines.push(
-      `> ${E.protected} **Recommendation:** \`${safe(intelligence.recommendation, "unknown").toUpperCase()}\``,
+      `${E.invisible} ${E.protected} **Recommendation:** \`${safe(intelligence.recommendation, "unknown").toUpperCase()}\``,
     );
     lines.push(
-      `> ${E.scan} **Confidence:** \`${safe(intelligence.confidence, "unknown").toUpperCase()}\``,
+      `${E.invisible} ${E.idCard} **Confidence:** \`${safe(intelligence.confidence, "unknown").toUpperCase()}\``,
     );
     if (intelligence.reasons?.length)
       lines.push(
-        `> ${E.warning} **Signals:** \`${safe(intelligence.reasons.join(", "))}\``,
+        `-# ${E.invisible} ${E.warning} **Signals:** \`${safe(intelligence.reasons.join(", "))}\``,
       );
   }
   if (state.errors.length) {
-    lines.push("", `${E.warning} __**Errors**__`);
+    lines.push(`${E.warning} __**Errors**__`);
     for (const error of state.errors.slice(-3))
       lines.push(
-        `> ${E.role} **${safe(error.stage, "system")}:** \`${safe(error.message)}\``,
+        `${E.invisible} ${E.error} **${safe(error.stage, "system")}:** \`${safe(error.message)}\``,
       );
   }
   return new EmbedBuilder()
