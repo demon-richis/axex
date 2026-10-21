@@ -4,6 +4,7 @@ const eventmode = require("../commands/eventmode");
 const quarantine = require("../commands/quarantine");
 const verificationLog = require("../commands/verificationLog");
 const axex = require("../commands/axex");
+const ping = require("../commands/ping");
 const embeds = require("../config/messages");
 
 const commands = {
@@ -11,6 +12,7 @@ const commands = {
   eventmode,
   quarantine,
   axex,
+  ping,
   "verification-log": verificationLog,
 };
 

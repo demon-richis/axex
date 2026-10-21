@@ -32,7 +32,7 @@ async function fetchChannel(guild, channelId) {
 async function sendReply(interaction, embed) {
   const payload = { embeds: [embed], components: [] };
   if (interaction.deferred || interaction.replied) {
-    await interaction.editReply(payload).catch(() => {});
+    await interaction.editReply({ content: "", ...payload }).catch(() => {});
   } else {
     await interaction
       .reply({ ...payload, flags: MessageFlags.Ephemeral })
@@ -161,6 +161,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
     typeof member.roles?.cache?.has !== "function"
   ) {
     await interaction.editReply({
+      content: "",
       embeds: [embeds.system.verificationLinkError()],
     });
     return;
@@ -170,15 +171,15 @@ async function handleVerifyStart(interaction, config, options = {}) {
   if (check.skip) {
     if (check.reason === "BOT") return;
     if (check.reason === "OWNER") {
-      await interaction.editReply(embeds.memberChecks.ownerSkipped());
+      await interaction.editReply({ content: "", ...embeds.memberChecks.ownerSkipped() });
       return;
     }
     if (check.reason === "VERIFIED") {
-      await interaction.editReply(embeds.memberChecks.alreadyVerified());
+      await interaction.editReply({ content: "", ...embeds.memberChecks.alreadyVerified() });
       return;
     }
     if (check.reason === "QUARANTINED") {
-      await interaction.editReply(embeds.memberChecks.alreadyQuarantined());
+      await interaction.editReply({ content: "", ...embeds.memberChecks.alreadyQuarantined() });
       return;
     }
     return;
@@ -190,6 +191,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
   if (!WEBSITE_URL || !WEBSITE_API_KEY) {
     console.error("[Verify] WEBSITE_URL or WEBSITE_API_KEY not set in .env");
     await interaction.editReply({
+      content: "",
       embeds: [
         embeds.replies.genericError
           ? embeds.replies.genericError()
@@ -217,6 +219,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
       const data = await pendingRes.json();
       if (data?.locked) {
         await interaction.editReply({
+          content: "",
           embeds: [
             embeds.replies.attemptsExhausted(
               data.attempts || 3,
@@ -232,6 +235,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
       ) {
         referenceId = data.referenceId || null;
         await interaction.editReply({
+          content: "",
           embeds: [
             embeds.replies.retryCooldown(
               data.attempts || 1,
@@ -296,6 +300,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
   if (!token) {
     console.error("[Verify] Could not obtain a verification token");
     await interaction.editReply({
+      content: "",
       embeds: [embeds.system.verificationLinkError()],
     });
     await sendLiveUpdate(member.guild, {
@@ -320,6 +325,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
   });
 
   await interaction.editReply({
+    content: "",
     embeds: [embeds.system.verificationLinkReady(verifyURL)],
     components: [
       new ActionRowBuilder().addComponents(
