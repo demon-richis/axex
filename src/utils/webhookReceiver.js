@@ -214,7 +214,7 @@ app.post("/webhook/verify-result", async (req, res) => {
     referenceId,
     passed,
     vpnDetected,
-    accountAgeDays,
+    accountAgeDays: payloadAccountAgeDays,
     clickMs,
     flagReason,
     failureReason,
@@ -315,6 +315,13 @@ app.post("/webhook/verify-result", async (req, res) => {
     const { recordEvent } = require("./intelligenceClient");
     const embeds = require("../config/messages");
 
+    const accountAge =
+      payloadAccountAgeDays !== null &&
+      payloadAccountAgeDays !== undefined &&
+      Number.isFinite(Number(payloadAccountAgeDays))
+        ? Math.max(0, Math.floor(Number(payloadAccountAgeDays)))
+        : accountAgeDays(member);
+
     const config = await getGuildConfig(normalizedGuildId);
     const state = await getGuildState(normalizedGuildId);
     if (!config)
@@ -406,7 +413,7 @@ app.post("/webhook/verify-result", async (req, res) => {
         flagReason ||
         failureReason ||
         (passed ? "VERIFIED" : "VERIFICATION_FAILED"),
-      accountAge: accountAgeDays,
+      accountAge,
     });
     if (!passed) {
       const reason = vpnDetected
@@ -428,7 +435,7 @@ app.post("/webhook/verify-result", async (req, res) => {
             : "VERIFICATION_FAILED",
         color: vpnDetected ? 0x9b59b6 : 0xff0000,
         ipFlagged: vpnDetected,
-        accountAge: accountAgeDays(member),
+        accountAge,
         clickMs,
         logType: vpnDetected
           ? "vpnDetected"
@@ -482,7 +489,7 @@ app.post("/webhook/verify-result", async (req, res) => {
         username: member.user.tag,
         action: "VERIFICATION_ROLE_UPDATE_FAILED",
         reason: message,
-        accountAge: accountAgeDays,
+        accountAge,
       });
       await retryClaim(message);
       return res.status(500).json({
@@ -520,7 +527,7 @@ app.post("/webhook/verify-result", async (req, res) => {
         username: member.user.tag,
         action: "VERIFICATION_ROLE_UPDATE_FAILED",
         reason: message.slice(0, 500),
-        accountAge: accountAgeDays,
+        accountAge,
       });
       await sendLiveUpdate(member.guild, {
         logType: "roleUpdateFailed",
@@ -554,7 +561,7 @@ app.post("/webhook/verify-result", async (req, res) => {
       color: 0x57f287,
       reason: "WEB_VERIFICATION_PASSED",
       clickMs,
-      accountAge: accountAgeDays,
+      accountAge,
       logType: "verified",
       referenceId: normalizedReferenceId,
       eventId: `VERIFY-${normalizedReferenceId}`,
@@ -569,7 +576,7 @@ app.post("/webhook/verify-result", async (req, res) => {
     try {
       await recordEvent(normalizedUserId, normalizedGuildId, "VERIFY_SUCCESS", {
         clickMs,
-        metadata: { accountAgeDays, referenceId: normalizedReferenceId },
+        metadata: { accountAgeDays: accountAge, referenceId: normalizedReferenceId },
       });
     } catch {}
     return res.json({ received: true, passed: true });

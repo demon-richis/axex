@@ -11,6 +11,10 @@ if (!process.env.BOT_TOKEN || !process.env.CLIENT_ID) {
 
 const commands = [
   {
+    name: "ping",
+    description: "Test whether Axex is responding",
+  },
+  {
     name: "vsetup",
     description: "Configure Axex verification system for this server",
     default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
