@@ -2,13 +2,22 @@ const { PermissionsBitField } = require('discord.js');
 const { getGuildConfig, savePanelMessageId } = require('../db/client');
 const messages = require('../config/messages');
 
+// Alias flags can share a bit value; normalize to unique canonical permission names.
+const ALL_PERMISSION_NAMES = [
+  ...new Set(
+    Object.values(PermissionsBitField.Flags).map(
+      (flag) => new PermissionsBitField(flag).toArray()[0],
+    ),
+  ),
+];
+
 // Reconcile only AxeX-managed principals; preserve staff/custom role overwrites.
 async function applyManagedOverwrites(channel, rules) {
   for (const rule of rules) {
     const allowed = new Set(new PermissionsBitField(rule.allow).toArray());
     const denied = new Set(new PermissionsBitField(rule.deny).toArray());
     const options = {};
-    for (const permission of Object.keys(PermissionsBitField.Flags)) {
+    for (const permission of ALL_PERMISSION_NAMES) {
       options[permission] = allowed.has(permission) ? true : denied.has(permission) ? false : null;
     }
     await channel.permissionOverwrites.edit(
@@ -61,7 +70,7 @@ async function syncAllGuilds(client) {
             PermissionsBitField.Flags.ViewChannel,
             PermissionsBitField.Flags.SendMessages,
           ],
-        }
+        },
       ]);
 
       if (quarantineChannel) {
@@ -86,7 +95,7 @@ async function syncAllGuilds(client) {
               PermissionsBitField.Flags.SendMessages,
               PermissionsBitField.Flags.ManageThreads,
             ],
-          }
+          },
         ]);
       }
 
@@ -100,7 +109,7 @@ async function syncAllGuilds(client) {
               PermissionsBitField.Flags.SendMessages,
               PermissionsBitField.Flags.ReadMessageHistory,
             ],
-          }
+          },
         ]);
       }
 
