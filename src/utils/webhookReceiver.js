@@ -4,7 +4,7 @@ const app = express();
 app.use(express.json({ limit: "100kb" }));
 const { sendLiveUpdate } = require("./liveUpdate");
 const { fingerprintPayload } = require("../db/verificationCallbackStore");
-const { getListenPort, getBotWebhookApiKey } = require("../config/runtime");
+const { getListenPort } = require("../config/runtime");
 
 let server;
 let discordClient;
