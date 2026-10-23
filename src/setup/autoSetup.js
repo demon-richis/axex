@@ -10,6 +10,7 @@ const {
 } = require("../db/client");
 const embeds = require("../config/messages");
 const websiteUrl = require("../utils/websiteUrl");
+const { getPortalApiKey } = require("../config/runtime");
 
 const ROLE_DEFINITIONS = Object.freeze([
   { name: "Verified", color: 0x00ff88, hoist: true },
@@ -543,7 +544,7 @@ async function autoSetup(guild, options = {}) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": (process.env.BOT_TO_PORTAL_KEY || process.env.AXEX_BOT_API_KEY || process.env.WEBSITE_API_KEY),
+          "x-api-key": getPortalApiKey(),
         },
         body: JSON.stringify({
           guildId: guild.id,

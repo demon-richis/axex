@@ -1,6 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getListenPort, getPortalApiKey, getBotWebhookApiKey, validateRuntimeEnvironment } = require("../src/config/runtime");
+const {
+  getListenPort,
+  getPortalApiKey,
+  getBotWebhookApiKey,
+  validateRuntimeEnvironment,
+} = require("../src/config/runtime");
 
 const completeEnv = {
   BOT_TOKEN: "token",
@@ -14,7 +19,10 @@ test("Catalyst listen port takes precedence over the local webhook port", () => 
 });
 
 test("local webhook port is supported when Catalyst is absent", () => {
-  assert.equal(getListenPort({ ...completeEnv, X_ZOHO_CATALYST_LISTEN_PORT: "", WEBHOOK_PORT: "39039" }), 39039);
+  assert.equal(
+    getListenPort({ ...completeEnv, X_ZOHO_CATALYST_LISTEN_PORT: "", WEBHOOK_PORT: "39039" }),
+    39039,
+  );
 });
 
 test("production validation rejects missing required secrets", () => {

@@ -19,9 +19,21 @@ function getBotWebhookApiKey(env = process.env) {
 
 function validateRuntimeEnvironment(env = process.env) {
   const missing = REQUIRED_ENV.filter((name) => !String(env[name] || "").trim());
-  if (missing.length) throw new Error(`Missing required production environment variable(s): ${missing.join(", ")}`);
-  if (!getPortalApiKey(env)) throw new Error("Missing required portal API key: BOT_TO_PORTAL_KEY or AXEX_BOT_API_KEY/WEBSITE_API_KEY");
-  if (!getBotWebhookApiKey(env)) throw new Error("Missing required webhook API key: PORTAL_TO_BOT_KEY or AXEX_BOT_API_KEY");
+  if (missing.length) {
+    throw new Error(
+      `Missing required production environment variable(s): ${missing.join(", ")}`,
+    );
+  }
+  if (!getPortalApiKey(env)) {
+    throw new Error(
+      "Missing required portal API key: BOT_TO_PORTAL_KEY or AXEX_BOT_API_KEY/WEBSITE_API_KEY",
+    );
+  }
+  if (!getBotWebhookApiKey(env)) {
+    throw new Error(
+      "Missing required webhook API key: PORTAL_TO_BOT_KEY or AXEX_BOT_API_KEY",
+    );
+  }
   return {
     listenPort: getListenPort(env),
     portalApiKey: getPortalApiKey(env),
@@ -29,4 +41,10 @@ function validateRuntimeEnvironment(env = process.env) {
   };
 }
 
-module.exports = { REQUIRED_ENV, getListenPort, getPortalApiKey, getBotWebhookApiKey, validateRuntimeEnvironment };
+module.exports = {
+  REQUIRED_ENV,
+  getListenPort,
+  getPortalApiKey,
+  getBotWebhookApiKey,
+  validateRuntimeEnvironment,
+};

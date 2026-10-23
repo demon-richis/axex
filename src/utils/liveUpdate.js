@@ -12,7 +12,10 @@ function pruneCaseStore(store, now = Date.now()) {
     if (!updatedAt || now - updatedAt > CASE_TTL_MS) store.delete(key);
   }
   if (store.size > MAX_CASES) {
-    const oldest = [...store.entries()].sort((a, b) => Number(a[1]?.lastUpdatedAt || 0) - Number(b[1]?.lastUpdatedAt || 0));
+    const oldest = [...store.entries()].sort(
+      (a, b) =>
+        Number(a[1]?.lastUpdatedAt || 0) - Number(b[1]?.lastUpdatedAt || 0),
+    );
     for (let i = 0; store.size > MAX_CASES && i < oldest.length; i += 1) store.delete(oldest[i][0]);
   }
 }
