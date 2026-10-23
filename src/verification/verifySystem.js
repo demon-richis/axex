@@ -186,10 +186,10 @@ async function handleVerifyStart(interaction, config, options = {}) {
   }
 
   const WEBSITE_URL = process.env.WEBSITE_URL;
-  const WEBSITE_API_KEY = process.env.WEBSITE_API_KEY;
+  const WEBSITE_API_KEY = process.env.BOT_TO_PORTAL_KEY || process.env.AXEX_BOT_API_KEY || process.env.WEBSITE_API_KEY;
 
   if (!WEBSITE_URL || !WEBSITE_API_KEY) {
-    console.error("[Verify] WEBSITE_URL or WEBSITE_API_KEY not set in .env");
+    console.error("[Verify] WEBSITE_URL or a bot-to-portal API key is not configured.");
     await interaction.editReply({
       content: "",
       embeds: [

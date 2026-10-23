@@ -47,6 +47,17 @@ test("verification callback rejects requests without the shared API key", async 
   assert.equal(JSON.parse(result.body).error, "Unauthorized");
 });
 
+test("verification callback accepts the directional portal-to-bot key", async () => {
+  process.env.PORTAL_TO_BOT_KEY = "directional-test-secret-not-real";
+  const result = await request("/webhook/verify-result", {
+    headers: { "x-api-key": process.env.PORTAL_TO_BOT_KEY },
+    body: { guildId: "12345678901234567", userId: "12345678901234568", passed: "true" },
+  });
+  assert.equal(result.status, 400);
+  assert.equal(JSON.parse(result.body).code, "INVALID_VERIFY_RESULT");
+  delete process.env.PORTAL_TO_BOT_KEY;
+});
+
 test("verification callback rejects malformed authenticated result payloads", async () => {
   const result = await request("/webhook/verify-result", {
     headers: { "x-api-key": process.env.AXEX_BOT_API_KEY },
@@ -57,9 +68,9 @@ test("verification callback rejects malformed authenticated result payloads", as
 });
 
 test("untrusted X-Forwarded-For cannot rotate webhook rate-limit buckets", async () => {
-  // Two requests to this socket have already occurred in earlier tests, so
-  // 28 more reach the per-minute allowance of 30.
-  for (let i = 0; i < 28; i += 1) {
+  // Three requests to this socket have already occurred in earlier tests, so
+  // 27 more reach the per-minute allowance of 30.
+  for (let i = 0; i < 27; i += 1) {
     const result = await request("/webhook/verify-result", {
       headers: { "x-forwarded-for": `198.51.100.${i + 1}` },
       body: {},

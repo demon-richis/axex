@@ -3,6 +3,21 @@ const messages = require("../config/messages");
 
 const cases = new Map();
 const queues = new Map();
+const CASE_TTL_MS = 30 * 60 * 1000;
+const MAX_CASES = 5000;
+
+function pruneCaseStore(store, now = Date.now()) {
+  for (const [key, value] of store) {
+    const updatedAt = Number(value?.lastUpdatedAt || 0);
+    if (!updatedAt || now - updatedAt > CASE_TTL_MS) store.delete(key);
+  }
+  if (store.size > MAX_CASES) {
+    const oldest = [...store.entries()].sort((a, b) => Number(a[1]?.lastUpdatedAt || 0) - Number(b[1]?.lastUpdatedAt || 0));
+    for (let i = 0; store.size > MAX_CASES && i < oldest.length; i += 1) store.delete(oldest[i][0]);
+  }
+}
+
+function pruneCases(now = Date.now()) { pruneCaseStore(cases, now); }
 
 const FINAL_LOG_TYPES = new Set([
   "verified",
@@ -34,7 +49,9 @@ function isSupported(data) {
 }
 
 function caseKey(guild, data) {
-  return `${guild.id}:${data?.member?.id || data?.userId || "unknown"}`;
+  const referenceId = String(data?.referenceId || "").trim();
+  if (referenceId) return `${guild.id}:ref:${referenceId}`;
+  return `${guild.id}:user:${data?.member?.id || data?.userId || "unknown"}`;
 }
 
 async function fetchLogChannel(guild) {
@@ -48,6 +65,7 @@ async function fetchLogChannel(guild) {
 
 async function updateCase(guild, data) {
   if (!isSupported(data)) return;
+  pruneCases();
   const key = caseKey(guild, data);
   const previous = cases.get(key) || {
     member: data.member,
@@ -60,6 +78,7 @@ async function updateCase(guild, data) {
     intelligence: null,
     errors: [],
     message: null,
+    lastUpdatedAt: Date.now(),
   };
 
   previous.member = data.member || previous.member;
@@ -68,6 +87,7 @@ async function updateCase(guild, data) {
   previous.accountAge = data.accountAge ?? previous.accountAge;
   previous.clickMs = data.clickMs ?? previous.clickMs;
   previous.latest = data;
+  previous.lastUpdatedAt = Date.now();
 
   if (data.logType === "intelligenceAnalysis")
     previous.intelligence = data.result || null;
@@ -115,4 +135,4 @@ async function sendLiveUpdate(guild, data = {}) {
   return cases.get(key)?.message || null;
 }
 
-module.exports = { sendLiveUpdate };
+module.exports = { sendLiveUpdate, caseKey, pruneCaseStore };

@@ -543,7 +543,7 @@ async function autoSetup(guild, options = {}) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": process.env.WEBSITE_API_KEY,
+          "x-api-key": (process.env.BOT_TO_PORTAL_KEY || process.env.AXEX_BOT_API_KEY || process.env.WEBSITE_API_KEY),
         },
         body: JSON.stringify({
           guildId: guild.id,
