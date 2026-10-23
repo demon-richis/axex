@@ -123,7 +123,9 @@ app.use("/webhook", (req, res, next) => {
 });
 
 function validateKey(req, res) {
-  const configuredKeys = [getBotWebhookApiKey()].filter(Boolean);
+  const configuredKeys = [process.env.PORTAL_TO_BOT_KEY, process.env.AXEX_BOT_API_KEY]
+    .map((value) => value?.trim())
+    .filter(Boolean);
   const providedKey = String(req.headers["x-api-key"] || "").trim();
   const providedBuffer = Buffer.from(providedKey);
   const valid = configuredKeys.some((configuredKey) => {
