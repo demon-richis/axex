@@ -1,10 +1,16 @@
 const REQUIRED_ENV = ["BOT_TOKEN", "DATABASE_URL", "AXEX_BOT_API_KEY"];
 
 function getListenPort(env = process.env) {
-  const raw = env.X_ZOHO_CATALYST_LISTEN_PORT || env.WEBHOOK_PORT || "3001";
+  const raw =
+    env.SERVER_PORT ||
+    env.X_ZOHO_CATALYST_LISTEN_PORT ||
+    env.WEBHOOK_PORT ||
+    "3001";
   const port = Number(raw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error("X_ZOHO_CATALYST_LISTEN_PORT/WEBHOOK_PORT must be a valid TCP port");
+    throw new Error(
+      "SERVER_PORT/X_ZOHO_CATALYST_LISTEN_PORT/WEBHOOK_PORT must be a valid TCP port",
+    );
   }
   return port;
 }
@@ -14,7 +20,6 @@ function validateRuntimeEnvironment(env = process.env) {
   if (missing.length) {
     throw new Error(`Missing required production environment variable(s): ${missing.join(", ")}`);
   }
-  getListenPort(env);
   return { listenPort: getListenPort(env) };
 }
 
