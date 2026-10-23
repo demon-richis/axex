@@ -79,6 +79,7 @@ async function quarantineUser(member, config, reason, options = {}) {
       void sendLiveUpdate(member.guild, {
         logType: "roleUpdateFailed",
         member,
+        referenceId: options.referenceId,
         roleName: "unverified",
         error: error.message,
       });
@@ -89,6 +90,7 @@ async function quarantineUser(member, config, reason, options = {}) {
       void sendLiveUpdate(member.guild, {
         logType: "roleUpdateFailed",
         member,
+        referenceId: options.referenceId,
         roleName: "quarantined",
         error: error.message,
       });
