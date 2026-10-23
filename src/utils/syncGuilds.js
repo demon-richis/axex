@@ -11,7 +11,11 @@ async function applyManagedOverwrites(channel, rules) {
     for (const permission of Object.keys(PermissionsBitField.Flags)) {
       options[permission] = allowed.has(permission) ? true : denied.has(permission) ? false : null;
     }
-    await channel.permissionOverwrites.edit(rule.id, options, "AxeX startup permission sync; preserve unrelated roles");
+    await channel.permissionOverwrites.edit(
+      rule.id,
+      options,
+      "AxeX startup permission sync; preserve unrelated roles",
+    );
   }
 }
 
@@ -36,26 +40,67 @@ async function syncAllGuilds(client) {
 
       await applyManagedOverwrites(verifyChannel, [
         { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: unverifiedRole.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory], deny: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.CreatePublicThreads, PermissionsBitField.Flags.CreatePrivateThreads, PermissionsBitField.Flags.AddReactions] },
+        {
+          id: unverifiedRole.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.ReadMessageHistory,
+          ],
+          deny: [
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.CreatePublicThreads,
+            PermissionsBitField.Flags.CreatePrivateThreads,
+            PermissionsBitField.Flags.AddReactions,
+          ],
+        },
         { id: verifiedRole.id, deny: [PermissionsBitField.Flags.ViewChannel] },
         { id: quarantinedRole.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: botRole.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+        {
+          id: botRole.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+          ],
+        }
       ]);
 
       if (quarantineChannel) {
         await applyManagedOverwrites(quarantineChannel, [
           { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: quarantinedRole.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.CreatePrivateThreads, PermissionsBitField.Flags.SendMessagesInThreads], deny: [PermissionsBitField.Flags.SendMessages] },
+          {
+            id: quarantinedRole.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.ReadMessageHistory,
+              PermissionsBitField.Flags.CreatePrivateThreads,
+              PermissionsBitField.Flags.SendMessagesInThreads,
+            ],
+            deny: [PermissionsBitField.Flags.SendMessages],
+          },
           { id: unverifiedRole.id, deny: [PermissionsBitField.Flags.ViewChannel] },
           { id: verifiedRole.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: botRole.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ManageThreads] }
+          {
+            id: botRole.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.ManageThreads,
+            ],
+          }
         ]);
       }
 
       if (logChannel) {
         await applyManagedOverwrites(logChannel, [
           { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: botRole.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+          {
+            id: botRole.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.ReadMessageHistory,
+            ],
+          }
         ]);
       }
 

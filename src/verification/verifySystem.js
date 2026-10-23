@@ -9,6 +9,7 @@ const embeds = require("../config/messages");
 const { sendLiveUpdate } = require("../utils/liveUpdate");
 const { runPreChecks } = require("../utils/memberChecks");
 const websiteUrl = require("../utils/websiteUrl");
+const { getPortalApiKey } = require("../config/runtime");
 
 function accountAgeDays(member) {
   return Math.max(
@@ -188,7 +189,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
   }
 
   const WEBSITE_URL = process.env.WEBSITE_URL;
-  const WEBSITE_API_KEY = process.env.BOT_TO_PORTAL_KEY || process.env.AXEX_BOT_API_KEY || process.env.WEBSITE_API_KEY;
+  const WEBSITE_API_KEY = getPortalApiKey();
 
   if (!WEBSITE_URL || !WEBSITE_API_KEY) {
     console.error("[Verify] WEBSITE_URL or a bot-to-portal API key is not configured.");
