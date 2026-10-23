@@ -1,4 +1,5 @@
 const websiteUrl = require('./websiteUrl');
+const { getPortalApiKey } = require('../config/runtime');
 
 const DEFAULT_SECONDS = 5;
 
@@ -15,7 +16,7 @@ async function pollOutbox() {
   if (inFlight) return;
   inFlight = true;
   try {
-    const apiKey = process.env.AXEX_BOT_API_KEY || process.env.WEBSITE_API_KEY;
+    const apiKey = getPortalApiKey();
     const response = await fetch(websiteUrl('/api/bot/outbox'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
@@ -47,7 +48,7 @@ function startOutboxPoller() {
   if (timer) return timer;
   if (
     !process.env.WEBSITE_URL ||
-    !(process.env.AXEX_BOT_API_KEY || process.env.WEBSITE_API_KEY)
+    !getPortalApiKey()
   ) {
     console.warn('[Outbox] WEBSITE_URL or API key missing; poller disabled.');
     return null;

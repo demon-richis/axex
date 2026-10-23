@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getListenPort, validateRuntimeEnvironment } = require("../src/config/runtime");
+const { getListenPort, getPortalApiKey, getBotWebhookApiKey, validateRuntimeEnvironment } = require("../src/config/runtime");
 
 const completeEnv = {
   BOT_TOKEN: "token",
@@ -28,5 +28,34 @@ test("production validation rejects invalid ports", () => {
   assert.throws(
     () => validateRuntimeEnvironment({ ...completeEnv, X_ZOHO_CATALYST_LISTEN_PORT: "not-a-port" }),
     /valid TCP port/,
+  );
+});
+
+test("Bot-Hosting SERVER_PORT takes precedence over other port variables", () => {
+  assert.equal(getListenPort({ ...completeEnv, SERVER_PORT: "26027" }), 26027);
+});
+
+test("directional API keys replace the legacy shared key", () => {
+  const env = {
+    ...completeEnv,
+    AXEX_BOT_API_KEY: "",
+    WEBSITE_API_KEY: "",
+    BOT_TO_PORTAL_KEY: "b".repeat(40),
+    PORTAL_TO_BOT_KEY: "p".repeat(40),
+  };
+  assert.equal(getPortalApiKey(env), env.BOT_TO_PORTAL_KEY);
+  assert.equal(getBotWebhookApiKey(env), env.PORTAL_TO_BOT_KEY);
+  assert.doesNotThrow(() => validateRuntimeEnvironment(env));
+});
+
+test("runtime validation fails closed without an inbound webhook key", () => {
+  assert.throws(
+    () => validateRuntimeEnvironment({
+      ...completeEnv,
+      AXEX_BOT_API_KEY: "",
+      PORTAL_TO_BOT_KEY: "",
+      BOT_TO_PORTAL_KEY: "b".repeat(40),
+    }),
+    /webhook API key/i,
   );
 });

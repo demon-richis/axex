@@ -16,7 +16,7 @@ The configured startup command is:
 node index.js
 ```
 
-The service binds to `X_ZOHO_CATALYST_LISTEN_PORT` automatically. Locally, it falls back to `WEBHOOK_PORT` and then `3001`.
+The service prefers the host-assigned `SERVER_PORT`, then `X_ZOHO_CATALYST_LISTEN_PORT`, `WEBHOOK_PORT`, `PORT`, and finally `3001`. This keeps the runtime port contract compatible across supported hosting panels.
 
 ## 2. Configure secrets in Catalyst
 
@@ -26,12 +26,14 @@ Required:
 
 - `BOT_TOKEN` — Discord bot token.
 - `DATABASE_URL` — production Postgres/Neon connection string.
-- `AXEX_BOT_API_KEY` — the shared secret used by the verification portal.
+- `BOT_TO_PORTAL_KEY` — bot-to-portal API key; match the portal's `BOT_TO_PORTAL_KEY`.
+- `PORTAL_TO_BOT_KEY` — portal-to-bot webhook key; match the portal's `PORTAL_TO_BOT_KEY`.
+- `AXEX_BOT_API_KEY` — temporary legacy fallback for both directions during key rotation; remove after both directional keys are verified.
 
 Required by the verification flow:
 
 - `WEBSITE_URL` — public verification portal URL.
-- `WEBSITE_API_KEY` — portal API key, if the portal integration uses it.
+- `WEBSITE_API_KEY` — legacy bot-to-portal API-key fallback only; prefer `BOT_TO_PORTAL_KEY`.
 - `CLIENT_ID` — Discord application ID, needed by command deployment.
 
 Optional:
@@ -66,7 +68,9 @@ curl -fsS https://<appsail-endpoint>/ready
 
 - Enable the privileged **Server Members Intent** and **Message Content Intent** for the Discord application.
 - Invite the bot with only the permissions it needs for verification, moderation, and logging.
-- Configure the portal webhook URL as `https://<appsail-endpoint>/webhook/verify-result` and send `X-API-Key: <AXEX_BOT_API_KEY>`.
+- Set `BOT_WEBHOOK_URL` in the portal to the full HTTPS endpoint `https://<appsail-endpoint>/webhook/verify-result` and match its `PORTAL_TO_BOT_KEY` to the bot's `PORTAL_TO_BOT_KEY`.
+- Match `BOT_TO_PORTAL_KEY` between the bot and portal for token, guild-registration, and outbox requests.
+- Do not use a plain-HTTP public webhook in production. If the host allocation only supports HTTP, put the receiver behind a TLS reverse proxy or authenticated HTTPS tunnel before switching the portal to it.
 - Configure any intelligence integration against `/webhook/intelligence-event` with the same shared API-key policy.
 - Run `npm run deploy-commands` once with the production `BOT_TOKEN`, `CLIENT_ID`, and optional `GUILD_ID` values before enabling production traffic.
 

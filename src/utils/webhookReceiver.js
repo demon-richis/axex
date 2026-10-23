@@ -4,7 +4,7 @@ const app = express();
 app.use(express.json({ limit: "100kb" }));
 const { sendLiveUpdate } = require("./liveUpdate");
 const { fingerprintPayload } = require("../db/verificationCallbackStore");
-const { getListenPort } = require("../config/runtime");
+const { getListenPort, getBotWebhookApiKey } = require("../config/runtime");
 
 let server;
 let discordClient;
@@ -123,9 +123,7 @@ app.use("/webhook", (req, res, next) => {
 });
 
 function validateKey(req, res) {
-  const configuredKeys = [process.env.AXEX_BOT_API_KEY]
-    .map((value) => value?.trim())
-    .filter(Boolean);
+  const configuredKeys = [getBotWebhookApiKey()].filter(Boolean);
   const providedKey = String(req.headers["x-api-key"] || "").trim();
   const providedBuffer = Buffer.from(providedKey);
   const valid = configuredKeys.some((configuredKey) => {
