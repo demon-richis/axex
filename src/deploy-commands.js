@@ -2,13 +2,6 @@ require("dotenv").config();
 
 const { REST, Routes, PermissionFlagsBits } = require("discord.js");
 
-if (!process.env.BOT_TOKEN || !process.env.CLIENT_ID) {
-  console.error(
-    "BOT_TOKEN and CLIENT_ID must be set before deploying commands.",
-  );
-  process.exit(1);
-}
-
 const commands = [
   {
     name: "ping",
@@ -205,16 +198,25 @@ const commands = [
   },
 ];
 
-const rest = new REST({ version: "10" }).setToken(process.env.BOT_TOKEN);
+async function deployCommands({
+  token = process.env.BOT_TOKEN,
+  clientId = process.env.CLIENT_ID,
+} = {}) {
+  if (!token || !clientId) {
+    throw new Error("BOT_TOKEN and CLIENT_ID (or a connected client ID) are required to deploy commands.");
+  }
 
-(async () => {
-  try {
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
-      body: commands,
-    });
-    console.log("Slash commands registered globally");
-  } catch (error) {
+  const rest = new REST({ version: "10" }).setToken(token);
+  await rest.put(Routes.applicationCommands(clientId), { body: commands });
+  console.log(`Slash commands registered globally (${commands.length})`);
+  return commands.length;
+}
+
+if (require.main === module) {
+  deployCommands().catch((error) => {
     console.error("Could not register global slash commands:", error);
     process.exitCode = 1;
-  }
-})();
+  });
+}
+
+module.exports = { deployCommands, commands };
