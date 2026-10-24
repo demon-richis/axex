@@ -6,6 +6,7 @@ const { syncAllGuilds } = require("./src/utils/syncGuilds");
 const memberAdd = require("./src/events/guildMemberAdd");
 const buttonHandler = require("./src/interactions/buttonHandler");
 const commandHandler = require("./src/interactions/commandHandler");
+const { deployCommands } = require("./src/deploy-commands");
 const { startOutboxPoller, stopOutboxPoller } = require("./src/utils/outboxPoller");
 const modalHandler = require("./src/interactions/modalHandler");
 const E = require("./src/verification/emojis");
@@ -77,6 +78,12 @@ async function start() {
   });
 
   client.once("ready", async () => {
+    try {
+      await deployCommands({ clientId: client.user.id });
+    } catch (error) {
+      console.error("[Axex] Slash-command deployment failed; continuing startup:", error);
+    }
+
     try {
       if (!(await initDB())) throw new Error("Database schema initialization failed");
       await syncAllGuilds(client);
