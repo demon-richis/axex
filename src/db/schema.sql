@@ -155,3 +155,30 @@ CREATE TABLE IF NOT EXISTS guild_state (
 
 ALTER TABLE guild_config
   ADD COLUMN IF NOT EXISTS webhook_url TEXT;
+
+CREATE TABLE IF NOT EXISTS verification_cases (
+  id               SERIAL PRIMARY KEY,
+  guild_id         TEXT NOT NULL,
+  user_id          TEXT NOT NULL,
+  case_code        TEXT NOT NULL,
+  reference_id     TEXT,
+  token_expires_at TIMESTAMPTZ,
+  status           TEXT NOT NULL DEFAULT 'in_progress',
+  log_channel_id   TEXT,
+  log_message_id   TEXT,
+  summary          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS verification_cases_guild_code_idx
+  ON verification_cases (guild_id, case_code);
+
+CREATE UNIQUE INDEX IF NOT EXISTS verification_cases_guild_reference_idx
+  ON verification_cases (guild_id, reference_id) WHERE reference_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS verification_cases_open_idx
+  ON verification_cases (status, token_expires_at);
+
+CREATE INDEX IF NOT EXISTS verification_cases_user_idx
+  ON verification_cases (guild_id, user_id, created_at DESC);
