@@ -1,5 +1,5 @@
 const E = require('../../verification/emojis');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, escapeMarkdown } = require('discord.js');
 
 function reply(color, title, description, fields = []) {
   const embed = new EmbedBuilder()
@@ -19,11 +19,23 @@ function retryText(attempts, cooldownUntil) {
     `${E.timeout} Try again <t:${Math.floor(new Date(cooldownUntil).getTime() / 1000)}:R>.`;
 }
 
-module.exports.success = () => reply(
+function serverName(guildName) {
+  const name = String(guildName ?? '').replace(/\s+/g, ' ').trim();
+  return name ? `**${escapeMarkdown(name).slice(0, 80)}**` : 'the *server*';
+}
+
+module.exports.success = (guildName) => reply(
   0x57F287,
   `${E.success} __**Verification Complete**__`,
   `${E.invisible} ${E.role} Your **Verified** role has been applied.\n` +
-    `-# ${E.invisible}  ${E.server} You now have access to the *server*.`,
+    `-# ${E.invisible}  ${E.server} You now have access to ${serverName(guildName)}.`,
+);
+
+module.exports.verificationExpired = (guildName) => reply(
+  0xF59E0B,
+  `${E.timeout} __**Verification Expired**__`,
+  `${E.invisible} ${E.warning} Your verification link was not completed in time.\n` +
+    `-# ${E.invisible} ${E.server} Press **Verify** again in ${serverName(guildName)} to get a new link.`,
 );
 
 
