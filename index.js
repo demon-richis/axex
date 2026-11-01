@@ -8,6 +8,7 @@ const buttonHandler = require("./src/interactions/buttonHandler");
 const commandHandler = require("./src/interactions/commandHandler");
 const { deployCommands } = require("./src/deploy-commands");
 const { startOutboxPoller, stopOutboxPoller } = require("./src/utils/outboxPoller");
+const { startCaseSweeper, stopCaseSweeper } = require("./src/utils/caseSweeper");
 const modalHandler = require("./src/interactions/modalHandler");
 const E = require("./src/verification/emojis");
 const { validateRuntimeEnvironment } = require("./src/config/runtime");
@@ -87,6 +88,7 @@ async function start() {
     try {
       if (!(await initDB())) throw new Error("Database schema initialization failed");
       await syncAllGuilds(client);
+      startCaseSweeper(client);
       logSuccessEmojiAvailability(client);
       const { startIntelligenceKeepAlive } = require("./src/utils/intelligenceKeepAlive");
       startIntelligenceKeepAlive();
@@ -103,7 +105,8 @@ async function start() {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`[Axex] Shutting down (exit ${exitCode})`);
-        stopOutboxPoller();
+    stopOutboxPoller();
+    stopCaseSweeper();
     stopWebhookReceiver();
     client.destroy();
     if (exitCode) process.exitCode = exitCode;

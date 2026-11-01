@@ -4,6 +4,7 @@ const {
   getGuildState,
   logQuarantine,
   logVerificationEvent,
+  caseStore,
 } = require("../db/client");
 const embeds = require("../config/messages");
 const { sendLiveUpdate } = require("../utils/liveUpdate");
@@ -61,7 +62,16 @@ async function recordAction(member, state, data) {
     logType: data.logType,
     color: data.color,
     member,
+    userId: member.id,
+    userTag: member.user.tag,
+    caseCode: data.caseCode,
     referenceId: data.referenceId,
+    attempts: data.attempts,
+    ipFlagged: data.ipFlagged,
+    vpnDetected: data.vpnDetected,
+    honeypot: data.honeypot,
+    botDetected: data.botDetected,
+    networkSignals: data.networkSignals,
     eventId: loggedEvent?.eventId || data.eventId,
     accountAge,
     clickMs: data.clickMs ?? null,
@@ -141,6 +151,12 @@ async function quarantineUser(member, config, reason, options = {}) {
     clickMs,
     accountAge,
     ipFlagged: options.ipFlagged,
+    vpnDetected: options.vpnDetected ?? (reason === "VPN_PROXY_DETECTED"),
+    attempts: options.attempts,
+    botDetected: options.botDetected,
+    networkSignals: options.networkSignals,
+    honeypot: options.honeypot,
+    caseCode: options.caseCode,
     referenceId: options.referenceId,
     eventId: options.eventId,
     logType:
@@ -204,13 +220,15 @@ async function handleVerifyStart(interaction, config, options = {}) {
     return;
   }
 
-  // Check for existing pending token
+  // Reuse a pending portal token where possible, while keeping a durable bot-side case.
   let token = null;
   let referenceId = null;
+  let caseCode = null;
+  let caseRow = null;
   try {
     const pendingRes = await fetch(
       websiteUrl(
-        `/api/verify/pending?userId=${member.id}&guildId=${interaction.guildId}`,
+        "/api/verify/pending?userId=" + member.id + "&guildId=" + interaction.guildId,
       ),
       {
         headers: { "x-api-key": WEBSITE_API_KEY },
@@ -251,14 +269,123 @@ async function handleVerifyStart(interaction, config, options = {}) {
       }
       token = data?.token || null;
       referenceId = data?.referenceId || null;
+      caseCode = data?.caseCode || null;
+      if (token && referenceId) {
+        caseRow = await caseStore.ensureForReference({
+          guildId: member.guild.id,
+          userId: member.id,
+          referenceId,
+          tokenExpiresAt: data?.expiresAt ? new Date(data.expiresAt) : new Date(Date.now() + 10 * 60 * 1000),
+        });
+        if (caseRow) {
+          caseRow = await caseStore.attachToken(caseRow.id, {
+            referenceId,
+            tokenExpiresAt: data?.expiresAt ? new Date(data.expiresAt) : new Date(Date.now() + 10 * 60 * 1000),
+            caseCode,
+          });
+          caseCode = caseRow?.case_code || caseCode;
+        }
+      }
     } else {
-      console.error(`[Verify] Pending check returned ${pendingRes.status}`);
+      console.error("[Verify] Pending check returned " + pendingRes.status);
     }
   } catch (err) {
+    token = null;
+    referenceId = null;
+    caseCode = null;
+    caseRow = null;
     console.error("[Verify] Pending check failed:", err?.name || "unknown");
   }
 
-  // Create new token if none found
+  // Reserve the case ID before the portal creates the token so both systems
+  // store the same eight-digit server-scoped identifier.
+  if (!token) {
+    let reserved = null;
+    const newToken = require("crypto").randomUUID();
+    try {
+      reserved = await caseStore.reserve({
+        guildId: member.guild.id,
+        userId: member.id,
+      });
+      let created = null;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const createRes = await fetch(websiteUrl("/api/bot/token"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": WEBSITE_API_KEY,
+          },
+          body: JSON.stringify({
+            token: newToken,
+            userId: member.id,
+            guildId: interaction.guildId,
+            guildName: interaction.guild.name,
+            guildMemberCount: interaction.guild.memberCount,
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+            caseCode: reserved.case_code,
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+        console.log("[Verify] Token create status:", createRes.status);
+        created = await createRes.json().catch(() => ({}));
+        if (createRes.ok) {
+          token = created?.token || newToken;
+          referenceId = created?.referenceId || null;
+          caseCode = created?.caseCode || reserved.case_code;
+          const expiresAt = created?.expiresAt
+            ? new Date(created.expiresAt)
+            : new Date(Date.now() + 10 * 60 * 1000);
+
+          if (created?.reused && referenceId) {
+            const existing = await caseStore.ensureForReference({
+              guildId: member.guild.id,
+              userId: member.id,
+              referenceId,
+              tokenExpiresAt: expiresAt,
+            });
+            await caseStore.discard(reserved.id);
+            caseRow = existing
+              ? await caseStore.attachToken(existing.id, {
+                  referenceId,
+                  tokenExpiresAt: expiresAt,
+                  caseCode,
+                })
+              : null;
+          } else {
+            caseRow = await caseStore.attachToken(reserved.id, {
+              referenceId,
+              tokenExpiresAt: expiresAt,
+              caseCode,
+            });
+          }
+          caseCode = caseRow?.case_code || caseCode;
+          break;
+        }
+
+        if (createRes.status === 409 && created?.error === "case_code_conflict") {
+          reserved = await caseStore.reassignCode(reserved.id);
+          if (reserved) continue;
+        }
+        console.error("[Verify] Token create request rejected:", createRes.status);
+        break;
+      }
+      if (!token) await caseStore.discard(reserved.id);
+    } catch (err) {
+      token = null;
+      referenceId = null;
+      caseCode = null;
+      caseRow = null;
+      if (reserved?.id) await caseStore.discard(reserved.id).catch(() => {});
+      console.error("[Verify] Token create failed:", err?.name || "unknown");
+      await sendLiveUpdate(member.guild, {
+        logType: "serviceError",
+        member,
+        stage: "token_create",
+        error: "Token creation request failed",
+      });
+    }
+  }
+
   if (!token) {
     const newToken = require("crypto").randomUUID();
     try {

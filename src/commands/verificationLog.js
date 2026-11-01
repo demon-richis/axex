@@ -3,7 +3,7 @@ const {
   MessageFlags,
   PermissionFlagsBits,
 } = require("discord.js");
-const { getVerificationTimeline } = require("../db/client");
+const { getVerificationTimeline, caseStore } = require("../db/client");
 const messages = require("../config/messages");
 
 async function execute(interaction) {
@@ -15,22 +15,43 @@ async function execute(interaction) {
     return;
   }
 
-  const referenceId = String(interaction.options.getString("reference") || "")
+  const caseInput = String(interaction.options.getString("reference") || "")
     .trim()
     .toUpperCase();
-  const filterUser = interaction.options.getUser?.("user");
-  const action =
-    String(interaction.options.getString("action") || "")
-      .trim()
-      .toUpperCase() || null;
-  const format = interaction.options.getString("format") || "embed";
-  if (referenceId && !/^AX-[A-Z0-9]{8}$/.test(referenceId)) {
+  let referenceId = caseInput;
+  let caseLabel = caseInput || null;
+
+  if (/^[1-9][0-9]{7}$/.test(caseInput)) {
+    const row = await caseStore.getByCode(interaction.guildId, caseInput);
+    if (!row) {
+      await interaction.reply({
+        content: messages.system.invalidCaseId(),
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+    referenceId = row.reference_id || "";
+    caseLabel = caseInput;
+    if (!referenceId) {
+      await interaction.reply({
+        content: messages.system.noMatchingHistory(),
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+  } else if (caseInput && !/^AX-[A-Z0-9]{8,32}$/.test(caseInput)) {
     await interaction.reply({
       content: messages.system.invalidCaseId(),
       flags: MessageFlags.Ephemeral,
     });
     return;
   }
+  const filterUser = interaction.options.getUser?.("user");
+  const action =
+    String(interaction.options.getString("action") || "")
+      .trim()
+      .toUpperCase() || null;
+  const format = interaction.options.getString("format") || "embed";
   if (!referenceId && !filterUser && !action) {
     await interaction.reply({
       content: messages.system.missingLogFilter(),
@@ -61,14 +82,19 @@ async function execute(interaction) {
         JSON.stringify(
           {
             referenceId: referenceId || null,
+            caseId: caseLabel,
             filters: { userId: filterUser?.id || null, action },
-            events,
+            events: events.map((event) => ({
+              ...event,
+              username: messages.audit.safe(event.username, "Unknown", 100),
+              reason: messages.audit.safe(event.reason, "", 300),
+            })),
           },
           null,
           2,
         ),
       ),
-      { name: `axex-verification-${referenceId || "audit"}.json` },
+      { name: `axex-verification-${caseLabel || "audit"}.json` },
     );
     await interaction.reply({
       content: messages.system.verificationAuditAttached(),
@@ -94,7 +120,7 @@ async function execute(interaction) {
   const minResponse = responseTimes.length ? Math.min(...responseTimes) : null;
   const maxResponse = responseTimes.length ? Math.max(...responseTimes) : null;
   const summary = messages.audit.summary({
-    referenceId,
+    referenceId: caseLabel || referenceId,
     first,
     last,
     events,

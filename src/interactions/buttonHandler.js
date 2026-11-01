@@ -3,8 +3,14 @@ const { getGuildConfig } = require("../db/client");
 const { handleVerifyStart } = require("../verification/verifySystem");
 const { handleSetupButton, handleRoleSelect } = require("../commands/vsetup");
 const embeds = require("../config/messages");
+const logSelectHandler = require("./logSelectHandler");
 
 async function execute(interaction) {
+  if (interaction.isStringSelectMenu() && /^vlog:[1-9][0-9]{7}$/.test(interaction.customId)) {
+    await logSelectHandler.execute(interaction);
+    return;
+  }
+
   if (
     interaction.isStringSelectMenu() &&
     interaction.customId.startsWith("axex_setup_roles_")

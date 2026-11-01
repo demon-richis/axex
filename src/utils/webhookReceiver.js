@@ -5,6 +5,7 @@ app.use(express.json({ limit: "100kb" }));
 const { sendLiveUpdate } = require("./liveUpdate");
 const { fingerprintPayload } = require("../db/verificationCallbackStore");
 const { getListenPort } = require("../config/runtime");
+const { withServerTag } = require("./serverTag");
 
 let server;
 let discordClient;
@@ -214,6 +215,11 @@ app.post("/webhook/verify-result", async (req, res) => {
     referenceId,
     passed,
     vpnDetected,
+    botDetected,
+    honeypotTriggered,
+    flagged,
+    vpnType,
+    caseCode,
     accountAgeDays: payloadAccountAgeDays,
     clickMs,
     flagReason,
@@ -225,6 +231,15 @@ app.post("/webhook/verify-result", async (req, res) => {
   const normalizedGuildId = String(guildId || "").trim();
   const normalizedUserId = String(userId || "").trim();
   const normalizedReferenceId = String(referenceId || "").trim() || null;
+  const networkSignals = [];
+  if (vpnDetected) {
+    networkSignals.push(vpnType
+      ? "VPN/proxy detected (" + String(vpnType).slice(0, 30) + ")"
+      : "VPN/proxy detected");
+  }
+  if (botDetected) networkSignals.push("Automated-client signal");
+  if (honeypotTriggered) networkSignals.push("Honeypot triggered");
+  if (flagged) networkSignals.push("Network flagged");
   if (!normalizedGuildId || !normalizedUserId || typeof passed !== "boolean") {
     return res.status(400).json({
       received: false,
@@ -434,7 +449,13 @@ app.post("/webhook/verify-result", async (req, res) => {
             ? "VERIFICATION_LOCKED"
             : "VERIFICATION_FAILED",
         color: vpnDetected ? 0x9b59b6 : 0xff0000,
-        ipFlagged: vpnDetected,
+        ipFlagged: Boolean(flagged),
+        vpnDetected: Boolean(vpnDetected),
+        botDetected: Boolean(botDetected),
+        honeypot: Boolean(honeypotTriggered),
+        networkSignals,
+        attempts: Number.isFinite(Number(attempts)) ? Number(attempts) : null,
+        caseCode,
         accountAge,
         clickMs,
         logType: vpnDetected
@@ -452,7 +473,7 @@ app.post("/webhook/verify-result", async (req, res) => {
       callbackClaimId = null;
       if (!completed) throw new Error("Could not complete verification callback receipt");
       await member
-        .send({
+        .send(withServerTag(guild, {
           embeds: [
             terminal
               ? embeds.replies.verificationLocked(attempts ?? 3, reason)
@@ -462,7 +483,7 @@ app.post("/webhook/verify-result", async (req, res) => {
                   cooldownUntil,
                 ),
           ],
-        })
+        }))
         .catch(() => {});
       await recordEvent(normalizedUserId, normalizedGuildId, "VERIFY_FAIL", {
         clickMs,
@@ -564,6 +585,13 @@ app.post("/webhook/verify-result", async (req, res) => {
       accountAge,
       logType: "verified",
       referenceId: normalizedReferenceId,
+      caseCode,
+      attempts: Number.isFinite(Number(attempts)) ? Number(attempts) : null,
+      ipFlagged: Boolean(flagged),
+      vpnDetected: Boolean(vpnDetected),
+      botDetected: Boolean(botDetected),
+      honeypot: Boolean(honeypotTriggered),
+      networkSignals,
       eventId: `VERIFY-${normalizedReferenceId}`,
     });
     const completed = await completeVerificationCallback(
@@ -572,7 +600,9 @@ app.post("/webhook/verify-result", async (req, res) => {
     );
     callbackClaimId = null;
     if (!completed) throw new Error("Could not complete verification callback receipt");
-    await member.send({ embeds: [embeds.replies.success()] }).catch(() => {});
+    await member.send(withServerTag(guild, {
+      embeds: [embeds.replies.success(guild.name)],
+    })).catch(() => {});
     try {
       await recordEvent(normalizedUserId, normalizedGuildId, "VERIFY_SUCCESS", {
         clickMs,

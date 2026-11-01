@@ -6,7 +6,10 @@ const MOBILE_EVENTS_INLINE = 8;
 
 function safe(value, fallback = "N/A", limit = 500) {
   return String(value ?? fallback)
-    .replaceAll("`", "'")
+    .replaceAll(String.fromCharCode(96), "'")
+    .replace(/IP_LOOKUP_FAILED/gi, "")
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, "[redacted]")
+    .replace(/\b[0-9a-f]{0,4}(?::[0-9a-f]{0,4}){2,7}\b/gi, "[redacted]")
     .replaceAll("\n", " ")
     .slice(0, limit);
 }
@@ -22,7 +25,7 @@ function eventDetails(event, eventNumber) {
   return (
     `${E.invisible} ${E.logs} **${eventNumber}. ${safe(event.action)}** · ${timestamp(event.created_at, "R")}\n` +
     `${E.invisible} ${E.invisible} ${E.idCard} \`${safe(event.event_id)}\` · ${E.reminder} ${safe(event.reason, "No reason recorded", 180)}\n` +
-    `-# ${E.invisible} ${E.invisible} ${E.timeout} ${safe(event.click_ms, "N/A")} ms · ${E.newAccount} ${safe(event.account_age, "N/A")}d · ${E.warning} IP ${event.ip_flagged ? "Yes" : "No"} · ${E.antiRaid} Raid ${event.raid_mode ? "Yes" : "No"}`
+    `-# ${E.invisible} ${E.invisible} ${E.timeout} ${safe(event.click_ms, "N/A")} ms · ${E.newAccount} ${safe(event.account_age, "N/A")}d · ${E.warning} Network ${event.ip_flagged ? "Flagged" : "Clear"} · ${E.antiRaid} Raid ${event.raid_mode ? "Yes" : "No"}`
   );
 }
 
@@ -67,7 +70,7 @@ function summary(data) {
       `${E.invisible} ${E.user} <@${safe(first.user_id)}> \`${safe(first.username)}\`\n` +
       `${E.invisible} ${E.idCard} User \`${safe(first.user_id)}\` · ${E.server} Guild \`${safe(first.guild_id)}\`\n` +
       `${E.invisible} ${isPassed ? E.success : E.webhook} Result \`${safe(last.action)}\` · ${E.scan} Events \`${events.length}\`\n` +
-      `${E.invisible} ${E.warning} Flags \`${flaggedEvents.length}\` · IP \`${ipFlagged}\` · Raid \`${raidFlagged}\`\n` +
+      `${E.invisible} ${E.warning} Flags \`${flaggedEvents.length}\` · Network \`${ipFlagged}\` · Raid \`${raidFlagged}\`\n` +
       `${E.invisible} ${E.timeout} Response \`${responseSummary}\`\n` +
       `${E.invisible} ${E.creation} First ${timestamp(first.created_at, "R")} · ${E.reminder} Last ${timestamp(last.created_at, "R")}\n` +
       `${E.invisible} ${E.arrow} Actions: ${actionsSummary}\n` +

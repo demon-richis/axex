@@ -78,7 +78,7 @@ module.exports = {
   invalidCaseId: () =>
     `${E.warning} __**Invalid Case ID**__\n` +
     `${E.invisible} ${E.idCard} That doesn't look like a valid case ID.\n` +
-    `-# ${E.invisible} ${E.arrow} Use a format like \`AX-1A2B3C4D\`.`,
+    `-# ${E.invisible} ${E.arrow} Use an 8-digit Case ID or a legacy \`AX-\` reference.`,
   missingLogFilter: () =>
     `${E.warning} __**Filter Required**__\n` +
     `${E.invisible} ${E.scan} Provide a **case ID**, **user**, or **action** to search.\n` +

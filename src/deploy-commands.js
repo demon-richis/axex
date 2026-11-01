@@ -165,11 +165,11 @@ const commands = [
     options: [
       {
         name: "reference",
-        description: "Case ID, for example AX-1A2B3C4D",
+        description: "8-digit Case ID or legacy AX- reference",
         type: 3,
         required: false,
-        min_length: 11,
-        max_length: 11,
+        min_length: 8,
+        max_length: 35,
       },
       {
         name: "user",
