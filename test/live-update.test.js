@@ -158,8 +158,8 @@ test("a late final result overwrites an expired case and clears its expired flag
   assert.equal(saved.status, "verified");
   assert.equal(saved.summary.expired, false);
   assert.equal(saved.summary.final.logType, "verified");
-  assert.match(embed.description, /SUCCESS/);
-  assert.doesNotMatch(embed.description, /EXPIRED/);
+  assert.match(embed.description, /Verification Success/);
+  assert.doesNotMatch(embed.description, /Verification Expired/);
 });
 
 test("an expiry update after a final result cannot downgrade the case", async () => {
@@ -186,8 +186,8 @@ test("an expiry update after a final result cannot downgrade the case", async ()
   assert.equal(saved.status, "verified");
   assert.equal(saved.summary.expired, false);
   assert.deepEqual(saved.summary.final, final);
-  assert.match(embed.description, /SUCCESS/);
-  assert.doesNotMatch(embed.description, /EXPIRED/);
+  assert.match(embed.description, /Verification Success/);
+  assert.doesNotMatch(embed.description, /Verification Expired/);
 });
 
 test.after(() => {

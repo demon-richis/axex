@@ -7,7 +7,7 @@ function optionValues(row) {
   return row.toJSON().components[0].options.map((option) => option.value);
 }
 
-test("verification log embed stays compact with only the user, Case ID, and status", () => {
+test("verification log embed stays compact: status title, user, and Case ID", () => {
   const embed = logs.verificationCase({
     caseCode: "48151623",
     userId: "123456789012345678",
@@ -16,12 +16,12 @@ test("verification log embed stays compact with only the user, Case ID, and stat
   }).toJSON();
 
   assert.equal(embed.fields, undefined);
-  assert.match(embed.description, /SUCCESS/);
+  assert.match(embed.description, /Verification Success/);
   assert.match(embed.description, /48151623/);
   assert.match(embed.description, /Member#1234/);
   assert.match(embed.description, /<@123456789012345678>/);
   assert.doesNotMatch(embed.description, /User ID|Account Intelligence|Verification Details/);
-  assert.ok(embed.description.split("\n").length <= 3);
+  assert.ok(embed.description.split("\n").length <= 4);
 });
 
 test("verification log embed renders EXPIRED as a distinct status", () => {
@@ -33,7 +33,8 @@ test("verification log embed renders EXPIRED as a distinct status", () => {
     expired: true,
   }).toJSON();
 
-  assert.match(embed.description, /EXPIRED/);
+  assert.match(embed.description, /Verification Expired/);
+  assert.match(embed.description, /press \*\*Verify\*\* again/);
   assert.ok(embed.description.startsWith(E.timeout));
 });
 
@@ -116,4 +117,49 @@ test("network section never renders raw IP values or IP_LOOKUP_FAILED", () => {
   assert.doesNotMatch(embed.description, /203\.0\.113\.42/);
   assert.doesNotMatch(embed.description, /2001:db8::5/i);
   assert.doesNotMatch(embed.description, /IP_LOOKUP_FAILED/i);
+});
+
+test("verification log embed shows risk and response time only when the data exists", () => {
+  const full = logs.verificationCase({
+    caseCode: "74633148",
+    userId: "123456789012345678",
+    userTag: "amaira.xyz",
+    status: "verified",
+    intelligence: { riskScore: 1, riskLevel: "clean" },
+    final: { logType: "verified", clickMs: 2783 },
+  }).toJSON().description;
+  assert.match(full, /Verification Success/);
+  assert.match(full, /\*\*Risk:\*\* `CLEAN` · `1\/100`/);
+  assert.match(full, /\*\*Response:\*\* `2\.8 s`/);
+  assert.match(full, /Pick a log from the menu below/);
+  assert.ok(full.split("\n").length <= 6);
+
+  const bare = logs.verificationCase({
+    caseCode: "74633148",
+    userId: "123456789012345678",
+    userTag: "amaira.xyz",
+    status: "verified",
+  }).toJSON().description;
+  assert.doesNotMatch(bare, /Risk:|Response:|Reason:/);
+});
+
+test("failed and quarantined embeds show a short reason, never an IP address", () => {
+  const failed = logs.verificationCase({
+    caseCode: "74633148",
+    userId: "123456789012345678",
+    userTag: "amaira.xyz",
+    status: "quarantined",
+    final: { logType: "vpnDetected", reason: "VPN or proxy detected from 203.0.113.9" },
+  }).toJSON().description;
+  assert.match(failed, /User Quarantined/);
+  assert.match(failed, /\*\*Reason:\*\*/);
+  assert.doesNotMatch(failed, /203\.0\.113\.9/);
+
+  const progress = logs.verificationCase({
+    caseCode: "74633148",
+    userId: "123456789012345678",
+    userTag: "amaira.xyz",
+  }).toJSON().description;
+  assert.match(progress, /Verification In Progress/);
+  assert.match(progress, /Waiting for the user/);
 });
