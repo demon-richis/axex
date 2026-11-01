@@ -45,11 +45,28 @@ function statusFor(state) {
   return "IN PROGRESS";
 }
 
+const STATUS_TITLES = {
+  SUCCESS: "Verification Success",
+  FAILED: "Verification Failed",
+  QUARANTINED: "User Quarantined",
+  EXPIRED: "Verification Expired",
+  "IN PROGRESS": "Verification In Progress",
+};
+
+function formatDuration(value) {
+  const ms = Number(value);
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  return ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : Math.round(ms) + " ms";
+}
+
+function chip(value, limit = 80) {
+  return "`" + safe(value, "N/A", limit) + "`";
+}
+
 function verificationCase(state = {}) {
   const status = statusFor(state);
-  const code = /^[1-9][0-9]{7}$/.test(String(state.caseCode || ""))
-    ? String(state.caseCode)
-    : safe(state.referenceId, "Legacy case", 40);
+  const hasMenu = /^[1-9][0-9]{7}$/.test(String(state.caseCode || ""));
+  const code = hasMenu ? String(state.caseCode) : safe(state.referenceId, "Legacy case", 40);
   const userId = state.userId || state.member?.id || "Unknown";
   const userTag = state.userTag || state.member?.user?.tag || "Unknown";
   const emoji = status === "SUCCESS" ? E.success
@@ -60,15 +77,46 @@ function verificationCase(state = {}) {
     : status === "QUARANTINED" || status === "FAILED" ? 0xef4444
       : status === "EXPIRED" ? 0xf59e0b : 0x5865f2;
 
+  const intelligence = state.intelligence || state.summary?.intelligence || null;
+  const final = state.final || state.summary?.final || {};
+  const lines = [
+    emoji + " __**" + STATUS_TITLES[status] + "**__",
+    E.invisible + " " + E.user + " **User:** " +
+      (userId === "Unknown" ? "Unknown" : "<@" + safe(userId) + ">") +
+      " · " + chip(userTag, 60),
+    E.invisible + " " + E.logs + " **Case ID:** " + chip(code, 40),
+  ];
+
+  if (intelligence && Number.isFinite(Number(intelligence.riskScore))) {
+    lines.push(
+      E.invisible + " " + E.scan + " **Risk:** " +
+        chip(String(intelligence.riskLevel || "unknown").toUpperCase(), 20) +
+        " · " + chip(Number(intelligence.riskScore) + "/100", 12),
+    );
+  }
+
+  const responseTime = formatDuration(final.clickMs ?? state.clickMs);
+  if (responseTime && (status === "SUCCESS" || status === "FAILED" || status === "QUARANTINED")) {
+    lines.push(E.invisible + " " + E.timeout + " **Response:** " + chip(responseTime, 20));
+  }
+
+  const reason = safe(final.reason, "", 90).trim();
+  if ((status === "FAILED" || status === "QUARANTINED") && reason) {
+    lines.push(E.invisible + " " + E.warning + " **Reason:** " + chip(reason, 90));
+  }
+
+  const hint = status === "EXPIRED"
+    ? "Link expired. The user can press **Verify** again."
+    : status === "IN PROGRESS"
+      ? "Waiting for the user to finish verification."
+      : hasMenu
+        ? "Pick a log from the menu below."
+        : null;
+  if (hint) lines.push("-# " + E.invisible + " " + E.arrow + " " + hint);
+
   return new EmbedBuilder()
     .setColor(color)
-    .setDescription(
-      emoji + " __**Verification Case · " + status + "**__\n" +
-      E.invisible + " " + E.user + " **User:** " +
-        (userId === "Unknown" ? "Unknown" : "<@" + safe(userId) + ">") +
-        " · " + safe(userTag, "Unknown", 80) + "\n" +
-      E.invisible + " " + E.logs + " **Case ID:** " + code,
-    )
+    .setDescription(lines.join("\n"))
     .setTimestamp();
 }
 
