@@ -286,6 +286,11 @@ async function sendLiveUpdate(guild, data = {}) {
   queues.set(key, next);
   try {
     return await next;
+  } catch (error) {
+    // The Discord log is auxiliary: a database or Discord failure here must never
+    // break verification, role assignment, or the callback that triggered it.
+    console.error("[LiveUpdate] Could not update verification case:", error?.message || error);
+    return null;
   } finally {
     if (queues.get(key) === next) queues.delete(key);
   }
