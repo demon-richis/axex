@@ -3,6 +3,8 @@ const { sendLiveUpdate } = require("./liveUpdate");
 const { withServerTag } = require("./serverTag");
 const replies = require("../config/messages/replies");
 
+const EXPIRED_ACTION = "mark";
+
 function createCaseSweeper(client, options = {}) {
   const claimExpired = options.claimExpired || caseStore.claimExpired.bind(caseStore);
   const updateLog = options.sendLiveUpdate || sendLiveUpdate;
@@ -91,4 +93,4 @@ function stopCaseSweeper() {
   activeSweeper = null;
 }
 
-module.exports = { createCaseSweeper, startCaseSweeper, stopCaseSweeper };
+module.exports = { createCaseSweeper, startCaseSweeper, stopCaseSweeper, EXPIRED_ACTION };

@@ -6,6 +6,21 @@ const {
 const { getVerificationTimeline, caseStore } = require("../db/client");
 const messages = require("../config/messages");
 
+const CASE_CODE_PATTERN = /^\d{8}$/;
+const LEGACY_REFERENCE_PATTERN = /^AX-[A-Z0-9]{8,32}$/;
+
+function validateCaseInput(value) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (!normalized) return { valid: true, kind: "empty", value: normalized };
+  if (CASE_CODE_PATTERN.test(normalized)) {
+    return { valid: true, kind: "caseCode", value: normalized };
+  }
+  if (LEGACY_REFERENCE_PATTERN.test(normalized)) {
+    return { valid: true, kind: "legacy", value: normalized };
+  }
+  return { valid: false, kind: "invalid", value: normalized };
+}
+
 async function execute(interaction) {
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
     await interaction.reply({
@@ -15,13 +30,19 @@ async function execute(interaction) {
     return;
   }
 
-  const caseInput = String(interaction.options.getString("reference") || "")
-    .trim()
-    .toUpperCase();
+  const parsedCase = validateCaseInput(interaction.options.getString("reference"));
+  if (!parsedCase.valid) {
+    await interaction.reply({
+      content: messages.system.invalidCaseId(),
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const caseInput = parsedCase.value;
   let referenceId = caseInput;
   let caseLabel = caseInput || null;
 
-  if (/^[1-9][0-9]{7}$/.test(caseInput)) {
+  if (parsedCase.kind === "caseCode") {
     const row = await caseStore.getByCode(interaction.guildId, caseInput);
     if (!row) {
       await interaction.reply({
@@ -39,12 +60,6 @@ async function execute(interaction) {
       });
       return;
     }
-  } else if (caseInput && !/^AX-[A-Z0-9]{8,32}$/.test(caseInput)) {
-    await interaction.reply({
-      content: messages.system.invalidCaseId(),
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
   }
   const filterUser = interaction.options.getUser?.("user");
   const action =
@@ -137,4 +152,4 @@ async function execute(interaction) {
   });
 }
 
-module.exports = { execute };
+module.exports = { execute, validateCaseInput, CASE_CODE_PATTERN, LEGACY_REFERENCE_PATTERN };
