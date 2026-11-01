@@ -95,6 +95,7 @@ test("select handler cannot read a case from another server", async () => {
 });
 
 test("select handler rejects unsupported section values", async () => {
+  sectionCalls.length = 0;
   const { interaction, replies } = makeInteraction({ values: ["raw-ip"] });
 
   await execute(interaction);
@@ -130,7 +131,7 @@ test("select handler returns the chosen section ephemerally", async () => {
   assert.equal(replies[0].flags, MessageFlags.Ephemeral);
   assert.equal(replies[0].deferred, true);
   assert.equal(edits.length, 1);
-  assert.equal(edits[0].embeds[0].title, "Case section");
+  assert.equal(edits[0].embeds[0].toJSON().title, "Case section");
   assert.deepEqual(sectionCalls.at(-1), {
     guildId: "guild-1",
     caseCode: "12345678",
