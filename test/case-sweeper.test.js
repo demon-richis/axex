@@ -208,3 +208,45 @@ test("expiry is mark-only and the unref'd 60-second sweeper prevents overlapping
   sweeper.stop();
   assert.equal(clearCalled, true);
 });
+
+
+
+test("menu expiry disables once, retries failed edits, and marks deleted messages", async () => {
+  const dueRows = [makeRow("42345678", { id: "row-1" }), makeRow("42345679", { id: "row-2" })];
+  const edits = new Map();
+  const marked = [];
+  let clock = 1000;
+  const sweeper = createCaseSweeper({ guilds: { cache: new Map([["guild-1", {}]]) } }, {
+    claimExpired: async () => [],
+    listMenuExpiry: async () => dueRows,
+    markMenuDisabled: async (id) => { marked.push(id); },
+    disableCaseMenu: async (_guild, row) => {
+      edits.set(row.id, (edits.get(row.id) || 0) + 1);
+      if (row.case_code === "42345678" && edits.get(row.id) === 1) return "failed";
+      return row.case_code === "42345679" ? "missing" : "disabled";
+    },
+    now: () => clock,
+    menuCheckEveryMs: 100,
+  });
+
+  await sweeper.sweep();
+  assert.deepEqual(marked, [dueRows[1].id]);
+  await sweeper.sweep();
+  assert.equal(edits.get(dueRows[0].id), 1, "expiry lookup must be throttled");
+  clock += 100;
+  await sweeper.sweep();
+  assert.equal(edits.get(dueRows[0].id), 2, "failed edit is retried");
+  assert.equal(edits.get(dueRows[1].id), 2);
+  assert.deepEqual(marked, [dueRows[1].id, dueRows[0].id, dueRows[1].id]);
+  sweeper.stop();
+});
+
+test("menu expiry is skipped when only claimExpired is injected", async () => {
+  let claims = 0;
+  const sweeper = createCaseSweeper({ guilds: { cache: new Map() } }, {
+    claimExpired: async () => { claims += 1; return []; },
+  });
+  await sweeper.sweep();
+  assert.equal(claims, 1);
+  sweeper.stop();
+});
