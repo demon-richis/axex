@@ -1,5 +1,6 @@
 const { getGuildConfig, caseStore, getVerificationTimeline } = require("../db/client");
 const messages = require("../config/messages");
+const { isMenuExpired } = require("./caseMenu");
 
 const cases = new Map();
 const queues = new Map();
@@ -194,6 +195,10 @@ function mergeSummary(existing, data, row) {
   return trimSummary(summary);
 }
 
+function menuIsExpired(row, summary) {
+  return summary?.menuDisabled === true || isMenuExpired(row?.created_at);
+}
+
 function toLogState(row, summary) {
   return {
     caseCode: row.case_code,
@@ -247,7 +252,9 @@ async function updateCase(guild, data) {
   const state = toLogState({ ...row, status: nextStatus }, summary);
   const payload = {
     embeds: [messages.logs.verificationCase(state)],
-    components: messages.logs.verificationCaseComponents(state),
+    components: messages.logs.verificationCaseComponents(state, {
+      disabled: menuIsExpired(row, summary),
+    }),
     allowedMentions: { parse: [] },
   };
 
@@ -304,15 +311,54 @@ async function getCaseSection(guildId, caseCode, section) {
   if (section === "timeline" && row.reference_id) {
     events = await getVerificationTimeline(guildId, row.reference_id, { limit: 100 });
   }
+  const state = { ...toLogState(row, summary), summary };
   return {
     row,
-    state: toLogState(row, summary),
-    embed: messages.logs.verificationSection(
-      { ...toLogState(row, summary), summary },
-      section,
-      events,
-    ),
+    state,
+    menuExpired: menuIsExpired(row, summary),
+    embed: messages.logs.verificationSection(state, section, events),
+    components: messages.logs.verificationCaseComponents(state),
   };
+}
+
+/**
+ * Compact case view (embed + dropdown) used by /verification-log.
+ * Looks the case up by 8-digit code, legacy reference, or the user's latest case.
+ */
+async function getCaseView(guildId, lookup = {}) {
+  let row = null;
+  if (lookup.caseCode) row = await caseStore.getByCode(guildId, lookup.caseCode);
+  else if (lookup.referenceId) row = await caseStore.getByReference(guildId, lookup.referenceId);
+  else if (lookup.userId) row = await caseStore.getLatestForUser(guildId, lookup.userId);
+  if (!row) return null;
+  const summary = row.summary && typeof row.summary === "object" ? row.summary : {};
+  const state = { ...toLogState(row, summary), summary };
+  return {
+    row,
+    state,
+    embed: messages.logs.verificationCase(state),
+    components: messages.logs.verificationCaseComponents(state),
+  };
+}
+
+/** Disables the dropdown on a stored #axex-logs message. Returns "disabled", "missing", or "failed". */
+async function disableCaseMenu(guild, row) {
+  if (!row?.log_channel_id || !row?.log_message_id) return "missing";
+  const channel = await fetchChannel(guild, row.log_channel_id);
+  const message = await fetchStoredMessage(channel, row.log_message_id);
+  if (!message) return "missing";
+  const summary = row.summary && typeof row.summary === "object" ? row.summary : {};
+  const state = { ...toLogState(row, summary), summary };
+  try {
+    await message.edit({
+      components: messages.logs.verificationCaseComponents(state, { disabled: true }),
+      allowedMentions: { parse: [] },
+    });
+    return "disabled";
+  } catch (error) {
+    console.error("[LiveUpdate] Could not disable the log menu:", error?.message || error);
+    return "failed";
+  }
 }
 
 module.exports = {
@@ -320,4 +366,6 @@ module.exports = {
   caseKey,
   pruneCaseStore,
   getCaseSection,
+  getCaseView,
+  disableCaseMenu,
 };

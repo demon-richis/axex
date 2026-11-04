@@ -1,5 +1,5 @@
 const { caseStore } = require("../db/client");
-const { sendLiveUpdate } = require("./liveUpdate");
+const { sendLiveUpdate, disableCaseMenu } = require("./liveUpdate");
 const { withServerTag } = require("./serverTag");
 const replies = require("../config/messages/replies");
 
@@ -7,6 +7,15 @@ const EXPIRED_ACTION = "mark";
 
 function createCaseSweeper(client, options = {}) {
   const claimExpired = options.claimExpired || caseStore.claimExpired.bind(caseStore);
+  const listMenuExpiry = options.listMenuExpiry || caseStore.listMenuExpiry?.bind(caseStore);
+  const markMenuDisabled = options.markMenuDisabled || caseStore.markMenuDisabled?.bind(caseStore);
+  const disableMenu = options.disableCaseMenu || disableCaseMenu;
+  const menuCheckEveryMs = Math.max(0, Number(options.menuCheckEveryMs ?? 5 * 60_000));
+  const now = options.now || Date.now;
+  // Tests that only inject claimExpired must not touch the real database for menu expiry.
+  const menuSweepEnabled = Boolean(listMenuExpiry && markMenuDisabled) &&
+    (Boolean(options.listMenuExpiry) || !options.claimExpired);
+  let lastMenuCheck = 0;
   const updateLog = options.sendLiveUpdate || sendLiveUpdate;
   const intervalMs = Math.max(10_000, Number(options.intervalMs) || 60_000);
   const graceSeconds = Math.max(0, Number(options.graceSeconds ?? 120));
@@ -16,10 +25,33 @@ function createCaseSweeper(client, options = {}) {
   let running = false;
   let stopped = false;
 
+  // Disables the #axex-logs dropdown 24 hours after the case was created.
+  // The case is only marked as done after Discord confirms the edit (or the message is gone),
+  // so a failed edit is retried on the next check.
+  async function sweepMenus() {
+    const rows = await listMenuExpiry({ olderThanHours: 24, limit: 25 });
+    for (const row of rows) {
+      const guild = client.guilds.cache.get(row.guild_id) ||
+        (await client.guilds.fetch(row.guild_id).catch(() => null));
+      const outcome = guild ? await disableMenu(guild, row) : "missing";
+      if (outcome === "disabled" || outcome === "missing") {
+        await markMenuDisabled(row.id);
+      }
+    }
+    return rows;
+  }
+
   async function sweep() {
     if (running || stopped) return [];
     running = true;
     try {
+      const checkMenus = menuSweepEnabled && now() - lastMenuCheck >= menuCheckEveryMs;
+      if (checkMenus) {
+        lastMenuCheck = now();
+        await sweepMenus().catch((error) => {
+          console.error("[CaseSweeper] Menu expiry sweep failed:", error.message);
+        });
+      }
       const expired = await claimExpired({ graceSeconds, limit: 50 });
       for (const row of expired) {
         // A link that was never opened never created a Discord log. Mark it
@@ -76,7 +108,7 @@ function createCaseSweeper(client, options = {}) {
     timer = null;
   }
 
-  return { start, stop, sweep };
+  return { start, stop, sweep, sweepMenus };
 }
 
 let activeSweeper = null;

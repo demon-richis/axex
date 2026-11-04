@@ -182,3 +182,7 @@ CREATE INDEX IF NOT EXISTS verification_cases_open_idx
 
 CREATE INDEX IF NOT EXISTS verification_cases_user_idx
   ON verification_cases (guild_id, user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS verification_cases_menu_idx
+  ON verification_cases (created_at)
+  WHERE log_message_id IS NOT NULL;
