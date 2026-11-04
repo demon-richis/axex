@@ -176,6 +176,41 @@ function createCaseStore(getSql, { generate = generateCaseCode } = {}) {
       return rows[0] || null;
     },
 
+    async getLatestForUser(guildId, userId) {
+      const rows = await getSql()`
+        SELECT * FROM verification_cases
+        WHERE guild_id = ${guildId} AND user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      return rows[0] || null;
+    },
+
+    /** Cases whose #axex-logs dropdown is older than the lifetime and not yet disabled. */
+    async listMenuExpiry({ olderThanHours = 24, limit = 25 } = {}) {
+      const hours = Math.max(1, Math.floor(Number(olderThanHours) || 24));
+      const max = Math.min(100, Math.max(1, Math.floor(Number(limit) || 25)));
+      return getSql()`
+        SELECT * FROM verification_cases
+        WHERE log_message_id IS NOT NULL
+          AND created_at < NOW() - (${hours}::int * INTERVAL '1 hour')
+          AND COALESCE(summary->>'menuDisabled', 'false') <> 'true'
+        ORDER BY created_at ASC
+        LIMIT ${max}
+      `;
+    },
+
+    async markMenuDisabled(id) {
+      const rows = await getSql()`
+        UPDATE verification_cases
+        SET summary = jsonb_set(summary, '{menuDisabled}', 'true'::jsonb, true),
+            updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `;
+      return rows[0] || null;
+    },
+
     /** Atomically moves abandoned cases to "expired" and returns each row exactly once. */
     async claimExpired({ graceSeconds = 120, limit = 25 } = {}) {
       const grace = Math.max(0, Math.floor(Number(graceSeconds) || 0));
