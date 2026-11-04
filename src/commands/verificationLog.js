@@ -4,6 +4,7 @@ const {
   PermissionFlagsBits,
 } = require("discord.js");
 const { getVerificationTimeline, caseStore } = require("../db/client");
+const { getCaseView } = require("../utils/liveUpdate");
 const messages = require("../config/messages");
 
 const CASE_CODE_PATTERN = /^\d{8}$/;
@@ -44,21 +45,9 @@ async function execute(interaction) {
 
   if (parsedCase.kind === "caseCode") {
     const row = await caseStore.getByCode(interaction.guildId, caseInput);
-    if (!row) {
-      await interaction.reply({
-        content: messages.system.invalidCaseId(),
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-    referenceId = row.reference_id || "";
-    caseLabel = caseInput;
-    if (!referenceId) {
-      await interaction.reply({
-        content: messages.system.noMatchingHistory(),
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
+    if (row) {
+      referenceId = row.reference_id || "";
+      caseLabel = caseInput;
     }
   }
   const filterUser = interaction.options.getUser?.("user");
@@ -67,6 +56,34 @@ async function execute(interaction) {
       .trim()
       .toUpperCase() || null;
   const format = interaction.options.getString("format") || "embed";
+
+  if (format !== "json") {
+    let lookup = null;
+    if (parsedCase.kind === "caseCode") lookup = { caseCode: caseInput };
+    else if (parsedCase.kind === "legacy") lookup = { referenceId: caseInput };
+    else if (filterUser && !caseInput) lookup = { userId: filterUser.id };
+
+    if (lookup) {
+      const view = await getCaseView(interaction.guildId, lookup);
+      if (view) {
+        await interaction.reply({
+          embeds: [view.embed],
+          components: view.components,
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+    }
+  }
+
+  if (parsedCase.kind === "caseCode" && !referenceId) {
+    await interaction.reply({
+      content: messages.system.noMatchingHistory(),
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
   if (!referenceId && !filterUser && !action) {
     await interaction.reply({
       content: messages.system.missingLogFilter(),
