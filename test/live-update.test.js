@@ -195,3 +195,21 @@ test.after(() => {
   else delete require.cache[dbPath];
   delete require.cache[require.resolve("../src/utils/liveUpdate")];
 });
+
+
+test("a live edit after 24 hours keeps the case dropdown disabled", async () => {
+  const { row, guild } = setupCase("52345678", "in_progress", {});
+  row.created_at = new Date(Date.now() - 25 * 60 * 60 * 1000);
+
+  await sendLiveUpdate(guild, {
+    logType: "intelligenceAnalysis",
+    caseCode: row.case_code,
+    referenceId: row.reference_id,
+    userId: row.user_id,
+    result: { riskScore: 10, riskLevel: "LOW" },
+  });
+
+  const select = editPayloads.get(row.case_code).components[0].toJSON().components[0];
+  assert.equal(select.disabled, true);
+  assert.equal(select.placeholder, "Expired · use /verification-log");
+});

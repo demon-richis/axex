@@ -157,3 +157,31 @@ test("server tag is a disabled button labelled '- servername', truncated to 80 c
   const payload = withServerTag({ name: "Axex QA lab" }, { embeds: [], components: [{ type: 1, components: [] }] });
   assert.equal(payload.components.length, 2);
 });
+
+
+test("getLatestForUser returns the newest case within the guild", async () => {
+  const store = createCaseStore(() => makeSqlTag(db));
+  const first = await store.ensureForReference({ guildId: "g-menu-1", userId: "u-latest", referenceId: "AX-LATEST-1" });
+  const second = await store.ensureForReference({ guildId: "g-menu-1", userId: "u-latest", referenceId: "AX-LATEST-2" });
+  await db.query("UPDATE verification_cases SET created_at = NOW() - INTERVAL '2 minutes' WHERE id = $1", [first.id]);
+  assert.equal((await store.getLatestForUser("g-menu-1", "u-latest")).id, second.id);
+  assert.equal(await store.getLatestForUser("other-guild", "u-latest"), null);
+});
+
+test("listMenuExpiry honors the 24-hour age, skips disabled or unlogged cases, and markMenuDisabled persists", async () => {
+  const store = createCaseStore(() => makeSqlTag(db));
+  const eligible = await store.ensureForReference({ guildId: "g-menu-2", userId: "u-1", referenceId: "AX-MENU-1" });
+  const tooRecent = await store.ensureForReference({ guildId: "g-menu-2", userId: "u-2", referenceId: "AX-MENU-2" });
+  const noMessage = await store.ensureForReference({ guildId: "g-menu-2", userId: "u-3", referenceId: "AX-MENU-3" });
+  const disabled = await store.ensureForReference({ guildId: "g-menu-2", userId: "u-4", referenceId: "AX-MENU-4" });
+  await db.query("UPDATE verification_cases SET created_at = NOW() - INTERVAL '25 hours', log_channel_id='chan', log_message_id='msg' WHERE id = $1", [eligible.id]);
+  await db.query("UPDATE verification_cases SET log_channel_id='chan', log_message_id='msg' WHERE id = $1", [tooRecent.id]);
+  await db.query("UPDATE verification_cases SET created_at = NOW() - INTERVAL '25 hours' WHERE id = $1", [noMessage.id]);
+  await db.query("UPDATE verification_cases SET created_at = NOW() - INTERVAL '25 hours', log_channel_id='chan', log_message_id='msg', summary=$1::jsonb WHERE id = $2", [JSON.stringify({ menuDisabled: true }), disabled.id]);
+
+  const rows = await store.listMenuExpiry({ olderThanHours: 24, limit: 50 });
+  assert.deepEqual(rows.map((row) => row.id), [eligible.id]);
+  const marked = await store.markMenuDisabled(eligible.id);
+  assert.equal(marked.summary.menuDisabled, true);
+  assert.deepEqual(await store.listMenuExpiry({ olderThanHours: 24, limit: 50 }), []);
+});
