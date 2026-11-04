@@ -1,5 +1,6 @@
 const { MessageFlags, PermissionFlagsBits } = require("discord.js");
 const { getCaseSection } = require("../utils/liveUpdate");
+const messages = require("../config/messages");
 
 const VALID_SECTIONS = new Set([
   "intelligence",
@@ -39,7 +40,10 @@ async function execute(interaction) {
     return;
   }
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  const fromEphemeralView = interaction.message?.flags?.has(MessageFlags.Ephemeral);
+  if (fromEphemeralView) await interaction.deferUpdate();
+  else await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
   try {
     const result = await getCaseSection(interaction.guildId, match[1], section);
     if (!result) {
@@ -49,8 +53,17 @@ async function execute(interaction) {
       return;
     }
 
+    if (!fromEphemeralView && result.menuExpired) {
+      await interaction.editReply({
+        embeds: [messages.logs.menuExpired(match[1])],
+        allowedMentions: { parse: [] },
+      });
+      return;
+    }
+
     await interaction.editReply({
       embeds: [result.embed],
+      ...(fromEphemeralView ? { components: result.components } : {}),
       allowedMentions: { parse: [] },
     });
   } catch (error) {

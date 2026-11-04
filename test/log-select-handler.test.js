@@ -15,7 +15,11 @@ require.cache[dbPath] = {
     async getCaseSection(guildId, caseCode, section) {
       sectionCalls.push({ guildId, caseCode, section });
       if (caseCode === "11111111" || guildId !== "guild-1") return null;
-      return { embed: { toJSON: () => ({ title: "Case section" }) } };
+      return {
+        embed: { toJSON: () => ({ title: "Case section" }) },
+        components: [{ customId: "vlog:12345678" }],
+        menuExpired: caseCode === "87654321",
+      };
     },
   },
   children: [],
@@ -34,6 +38,7 @@ function makeInteraction(overrides = {}) {
     guildId: "guild-1",
     memberPermissions: { has: (permission) => permission === PermissionFlagsBits.ManageGuild },
     isStringSelectMenu: () => true,
+    async deferUpdate() { replies.push({ deferredUpdate: true }); },
     async reply(payload) { replies.push(payload); },
     async deferReply(payload) { replies.push({ deferred: true, ...payload }); },
     async editReply(payload) { edits.push(payload); },
@@ -137,6 +142,31 @@ test("select handler returns the chosen section ephemerally", async () => {
     caseCode: "12345678",
     section: "timeline",
   });
+});
+
+test("select handler rejects an expired public menu with the expiry notice", async () => {
+  const { interaction, replies, edits } = makeInteraction({ customId: "vlog:87654321" });
+
+  await execute(interaction);
+
+  assert.equal(replies[0].deferred, true);
+  assert.match(edits[0].embeds[0].data.description, /Log Menu Expired/);
+  assert.deepEqual(edits[0].allowedMentions, { parse: [] });
+});
+
+test("ephemeral case view switches sections by deferUpdate and edits the same message with components", async () => {
+  const components = [{ customId: "vlog:12345678" }];
+  const { interaction, replies, edits } = makeInteraction({
+    message: { flags: { has: (flag) => flag === MessageFlags.Ephemeral } },
+  });
+
+  await execute(interaction);
+
+  assert.deepEqual(replies, [{ deferredUpdate: true }]);
+  assert.equal(edits.length, 1);
+  assert.deepEqual(edits[0].components, components);
+  assert.equal(edits[0].embeds[0].toJSON().title, "Case section");
+  assert.deepEqual(edits[0].allowedMentions, { parse: [] });
 });
 
 test.after(() => {
