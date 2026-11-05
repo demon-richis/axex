@@ -2,7 +2,8 @@ require("dotenv").config();
 
 const { Client, GatewayIntentBits, PermissionFlagsBits } = require("discord.js");
 const { initDB } = require("./src/db/client");
-const { syncAllGuilds } = require("./src/utils/syncGuilds");
+const { syncAllGuilds: syncGuildPermissions } = require("./src/utils/syncGuilds");
+const { upsertGuild, markGuildRemoved, syncAllGuilds: syncBotGuilds, startGuildHeartbeat } = require("./src/utils/guildSync");
 const memberAdd = require("./src/events/guildMemberAdd");
 const buttonHandler = require("./src/interactions/buttonHandler");
 const commandHandler = require("./src/interactions/commandHandler");
@@ -63,6 +64,15 @@ async function start() {
   // listen on its assigned port during startup, even while Discord is connecting.
   startWebhookReceiver(client, runtime.listenPort);
 
+  client.on("guildCreate", (guild) => {
+    upsertGuild(guild).catch((error) => console.error(`[Axex] guildCreate sync failed for ${guild.id}:`, error));
+  });
+  client.on("guildUpdate", (_oldGuild, guild) => {
+    upsertGuild(guild).catch((error) => console.error(`[Axex] guildUpdate sync failed for ${guild.id}:`, error));
+  });
+  client.on("guildDelete", (guild) => {
+    markGuildRemoved(guild.id).catch((error) => console.error(`[Axex] guildDelete sync failed for ${guild.id}:`, error));
+  });
   client.on("guildMemberAdd", (member) => {
     memberAdd.execute(member, client).catch((error) => {
       console.error(`guildMemberAdd failed for ${member.guild.id}/${member.id}:`, error);
@@ -87,7 +97,9 @@ async function start() {
 
     try {
       if (!(await initDB())) throw new Error("Database schema initialization failed");
-      await syncAllGuilds(client);
+      await syncBotGuilds(client);
+      startGuildHeartbeat(client);
+      await syncGuildPermissions(client);
       startCaseSweeper(client);
       logSuccessEmojiAvailability(client);
       const { startIntelligenceKeepAlive } = require("./src/utils/intelligenceKeepAlive");
