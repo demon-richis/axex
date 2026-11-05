@@ -186,3 +186,4 @@ CREATE INDEX IF NOT EXISTS verification_cases_user_idx
 CREATE INDEX IF NOT EXISTS verification_cases_menu_idx
   ON verification_cases (created_at)
   WHERE log_message_id IS NOT NULL;
+CREATE SCHEMA IF NOT EXISTS dashboard; CREATE TABLE IF NOT EXISTS dashboard.bot_guilds (guild_id TEXT PRIMARY KEY, name TEXT NOT NULL, icon TEXT, owner_id TEXT NOT NULL, member_count INTEGER NOT NULL DEFAULT 0, installed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), removed_at TIMESTAMPTZ);
