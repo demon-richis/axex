@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const { after, before, test } = require("node:test");
 const { PGlite } = require("@electric-sql/pglite");
+const { getSql } = require("../src/db/client");
 const { createGuildSync } = require("../src/utils/guildSync");
 const schema = fs.readFileSync(require.resolve("../src/db/schema.sql"), "utf8");
 let db;
@@ -23,6 +24,9 @@ before(async () => {
 });
 after(async () => {
   if (db) await db.close();
+});
+test("database client exports getSql for guild metadata sync", () => {
+  assert.equal(typeof getSql, "function");
 });
 test("upsert records guild metadata and reactivates a previously removed guild", async () => {
   assert.equal(await sync.upsertGuild(guild("g-1")), true);

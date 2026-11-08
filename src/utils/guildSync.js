@@ -54,6 +54,7 @@ function createGuildSync(sqlProvider) {
           name = EXCLUDED.name, icon = EXCLUDED.icon, owner_id = EXCLUDED.owner_id,
           member_count = EXCLUDED.member_count, last_seen_at = NOW(), removed_at = NULL
       `;
+      console.log(`[Axex] Synced metadata for ${records.length} joined guild(s).`);
       return true;
     } catch (error) {
       console.error("[Axex] Could not sync joined guilds:", error.message);
