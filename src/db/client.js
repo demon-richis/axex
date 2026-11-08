@@ -464,6 +464,7 @@ async function setGuildState(guildId, updates) {
 }
 
 module.exports = {
+  getSql,
   initDB,
   caseStore,
   getGuildConfig,
