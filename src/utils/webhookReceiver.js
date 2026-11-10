@@ -76,7 +76,6 @@ app.get("/health", (_req, res) => {
     status: discordClient?.isReady() ? "ok" : "starting",
     service: "axex-bot-webhook",
     ready: Boolean(discordClient?.isReady()),
-    guilds: discordClient?.guilds.cache.size ?? 0,
     checkedAt: new Date().toISOString(),
   });
 });

@@ -12,7 +12,7 @@ after(async () => {
   await once(server, "close");
 });
 
-function request(path, { headers = {}, body } = {}) {
+function request(path, { headers = {}, body, method = "POST" } = {}) {
   const payload = body === undefined ? undefined : JSON.stringify(body);
   return new Promise((resolve, reject) => {
     const req = http.request(
@@ -20,7 +20,7 @@ function request(path, { headers = {}, body } = {}) {
         host: "127.0.0.1",
         port: server.address().port,
         path,
-        method: "POST",
+        method,
         headers: {
           ...(payload ? { "content-type": "application/json" } : {}),
           ...headers,
@@ -38,6 +38,16 @@ function request(path, { headers = {}, body } = {}) {
     req.end();
   });
 }
+
+test("public health endpoint reports bounded readiness data without guild counts", async () => {
+  const result = await request("/health", { method: "GET" });
+  assert.equal(result.status, 200);
+  const health = JSON.parse(result.body);
+  assert.equal(health.service, "axex-bot-webhook");
+  assert.equal(health.ready, false);
+  assert.equal(typeof health.checkedAt, "string");
+  assert.equal("guilds" in health, false);
+});
 
 test("verification callback rejects requests without the shared API key", async () => {
   const result = await request("/webhook/verify-result", {
