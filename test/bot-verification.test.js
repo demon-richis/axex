@@ -1,0 +1,14 @@
+const test = require("node:test"); const assert = require("node:assert/strict");
+const { classifyBot, findImpersonation, dangerousPermissions, actionFallback, getBotVerificationConfig } = require("../src/verification/botVerification");
+const { PermissionFlagsBits } = require("discord.js");
+const member = { user: { id: "12345678901234567" }, guild: { id: "76543210987654321" } };
+const fresh = { publicFlags: { bitfield: 65536 }, username: "Other" };
+const deps = (row, whitelist = false, user = fresh) => ({ member, fetchUser: async () => user, findGlobalBot: async () => row, isWhitelisted: async () => whitelist, verifiedNames: [] });
+test("classification order: blocked beats whitelist", async () => assert.equal((await classifyBot(deps({ status: "blocked" }, true))).result, "blocked"));
+test("explicit unverified beats Discord verified flag", async () => assert.match((await classifyBot(deps({ status: "unverified" }))).reason, /Discord shows Verified/));
+test("Discord verified allows an unknown bot", async () => assert.equal((await classifyBot(deps(null))).reason, "discord_verified"));
+test("DB failure fails closed", async () => assert.equal((await classifyBot({ ...deps(null), findGlobalBot: async () => { throw new Error("timeout"); } })).reason, "db_error"));
+test("impersonation matcher handles leetspeak and ignores same verified ID", () => { assert.ok(findImpersonation("Axex 5entinel", "99999999999999999", [{ bot_id: "11111111111111111", name: "Axex Sentinel" }])); assert.equal(findImpersonation("Axex Sentinel", "11111111111111111", [{ bot_id: "11111111111111111", name: "Axex Sentinel" }]), null); });
+test("dangerous permissions are identified", () => assert.deepEqual(dangerousPermissions(BigInt(PermissionFlagsBits.Administrator) | BigInt(PermissionFlagsBits.BanMembers)), ["Administrator", "BanMembers"]));
+test("action fallback weakens ban and restrict safely", () => { assert.equal(actionFallback("ban", { canBan: false, canKick: true }).action, "kick"); assert.equal(actionFallback("restrict", { canRestrict: false }).action, "alert"); });
+test("invalid config values fall back to safe defaults", () => assert.deepEqual(getBotVerificationConfig({ unverified_bot_action: "delete", blocked_bot_action: "ignore" }), { enabled: true, unverifiedAction: "restrict", blockedAction: "ban" }));
