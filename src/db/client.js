@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const { neon } = require("@neondatabase/serverless");
 const { createVerificationCallbackStore } = require("./verificationCallbackStore");
 const { createCaseStore } = require("./caseStore");
+const { createBotVerificationStore } = require("./botVerificationStore");
 
 let sql = null;
 const guildConfigCache = new Map();
@@ -24,6 +25,7 @@ function getSql() {
 
 const verificationCallbackStore = createVerificationCallbackStore(getSql);
 const caseStore = createCaseStore(getSql);
+const botVerificationStore = createBotVerificationStore(getSql);
 
 async function claimVerificationCallback(data) {
   return verificationCallbackStore.claim(data);
@@ -490,4 +492,5 @@ module.exports = {
   resolveQuarantineCase,
   getGuildState,
   setGuildState,
+  botVerificationStore,
 };

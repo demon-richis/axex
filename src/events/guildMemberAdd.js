@@ -12,6 +12,7 @@ const {
   recordJoin,
 } = require("../utils/raidDetector");
 const { analyzeUser } = require("../utils/intelligenceClient");
+const botVerification = require("./botVerification");
 const {
   quarantineUser,
   recordAction,
@@ -124,6 +125,10 @@ async function processJoinAfterRole(member, config) {
 
 async function execute(member) {
   const { guild } = member;
+  if (member.user?.bot) {
+    await botVerification.execute(member);
+    return;
+  }
   const check = await runPreChecks(member);
   if (check.skip) {
     if (check.reason === "OWNER") {

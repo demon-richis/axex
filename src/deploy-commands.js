@@ -4,6 +4,21 @@ const { REST, Routes, PermissionFlagsBits } = require("discord.js");
 
 const commands = [
   {
+    name: "bot-verification",
+    description: "Manage Axex bot verification",
+    default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
+    dm_permission: false,
+    options: [
+      { name: "config", type: 1, description: "View bot verification configuration" },
+      { name: "enable", type: 1, description: "Enable bot verification" },
+      { name: "disable", type: 1, description: "Disable bot verification" },
+      { name: "set-unverified-action", type: 1, description: "Set action for unverified bots", options: [{ name: "action", type: 3, required: true, description: "Action", choices: [{ name: "alert", value: "alert" }, { name: "restrict", value: "restrict" }, { name: "kick", value: "kick" }] }] },
+      { name: "set-blocked-action", type: 1, description: "Set action for blocked bots", options: [{ name: "action", type: 3, required: true, description: "Action", choices: [{ name: "alert", value: "alert" }, { name: "kick", value: "kick" }, { name: "ban", value: "ban" }] }] },
+      { name: "whitelist-list", type: 1, description: "List approved bots" },
+      { name: "whitelist-remove", type: 1, description: "Remove an approved bot", options: [{ name: "bot", type: 3, required: true, description: "17-20 digit bot ID", min_length: 17, max_length: 20 }] },
+    ],
+  },
+  {
     name: "ping",
     description: "Test whether Axex is responding",
   },

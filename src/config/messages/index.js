@@ -8,4 +8,5 @@ module.exports = {
   memberChecks: require("./memberChecks"),
   system: require("./system"),
   audit: require("./audit"),
+  botVerification: require("./botVerification"),
 };
