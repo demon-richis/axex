@@ -1,0 +1,12 @@
+# Bot verification TEST plan
+
+1. Create a disposable Neon TEST branch and apply `src/db/migrations/20261112_bot_verification.sql` manually. Create the restricted bot role and separate `axex_admin_rw` role described in `docs/botdb-setup.md`; do not use production credentials.
+2. Run `npm run setup-hooks`, then `node scripts/botdb setup --keyfile <separate-test-keyfile>`. Confirm the keyfile is stored separately from `.env.admin`.
+3. Prepare `bots.csv` with two or three obviously fake/test IDs. Run `node scripts/botdb scan --fast`; verify names are filled only for Discord bot accounts, human/404 IDs become INVALID, VerifiedBot mismatches are warned, and `.botdb/scan-cache.json` is created.
+4. Run `node scripts/botdb sync --dry-run --fast`; confirm the diff appears and no database write occurs. Exercise blocked-wins, `--force`, `--prune`, mass-change, and re-entry confirmation paths using mocked or disposable TEST data.
+5. Add a test bot to a test Discord server with bot verification enabled and a configured Axex log channel. Verify a globally verified bot is allowed, an explicit unverified bot is restricted/kicked according to config, a globally blocked bot is blocked, and a close-name impersonator is marked suspicious.
+6. Test Administrator and each dangerous permission, missing Manage Roles, role hierarchy below the bot role, missing Kick/Ban permissions, and database outage. Expected behavior is the documented weaker fallback and fail-closed `db_error` classification.
+7. Click Approve and Deny as the server owner and an authorized administrator. Confirm unauthorized users receive an ephemeral refusal, stale cases are rejected, Approve restores original role permissions and creates a guild whitelist entry, and Deny kicks the bot.
+8. Change permissions for an allowed bot. Confirm the role-update monitor posts an alert only and does not modify roles. Run the weekly monitor with a mocked Discord flag disappearance and confirm an audit webhook alert and persisted monitor state; run it again before seven days and confirm it skips.
+9. Stop or mock the audit webhook. Confirm actions continue with a clear warning and no unhandled exception. Confirm no secret, token, passphrase, DB URL, or keyfile contents appear in output or logs.
+10. Before any production consideration, review `npm audit --omit=dev`, migration SQL, role grants, Discord permissions, webhook access, and the `prod-hardening` merge notes. Production deployment is not covered by this plan.
