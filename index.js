@@ -17,6 +17,7 @@ const {
   startWebhookReceiver,
   stopWebhookReceiver,
 } = require("./src/utils/webhookReceiver");
+const botVerificationMonitor = require("./src/monitoring/botVerificationMonitor");
 
 function createClient() {
   return new Client({
@@ -59,6 +60,7 @@ async function start() {
   const runtime = validateRuntimeEnvironment();
   const client = createClient();
   let shuttingDown = false;
+  let stopBotVerificationMonitor = () => {};
 
   // Bind the HTTP listener before Discord login. Catalyst requires the process to
   // listen on its assigned port during startup, even while Discord is connecting.
@@ -76,6 +78,11 @@ async function start() {
   client.on("guildMemberAdd", (member) => {
     memberAdd.execute(member, client).catch((error) => {
       console.error(`guildMemberAdd failed for ${member.guild.id}/${member.id}:`, error);
+    });
+  });
+  client.on("guildMemberUpdate", (oldMember, newMember) => {
+    botVerificationMonitor.handleRoleUpdate(oldMember, newMember).catch((error) => {
+      console.error("Bot verification role monitor failed:", error.message);
     });
   });
   client.on("interactionCreate", (interaction) => {
@@ -104,6 +111,7 @@ async function start() {
       logSuccessEmojiAvailability(client);
       const { startIntelligenceKeepAlive } = require("./src/utils/intelligenceKeepAlive");
       startIntelligenceKeepAlive();
+      stopBotVerificationMonitor = botVerificationMonitor.start(client);
             startOutboxPoller();
       console.log(`Axex online — ${client.user.tag}`);
       console.log(`Serving ${client.guilds.cache.size} server(s)`);
@@ -120,6 +128,7 @@ async function start() {
     stopOutboxPoller();
     stopCaseSweeper();
     stopWebhookReceiver();
+    stopBotVerificationMonitor();
     client.destroy();
     if (exitCode) process.exitCode = exitCode;
   }

@@ -59,11 +59,17 @@ CREATE TRIGGER bot_db_audit_no_truncate BEFORE TRUNCATE ON bot_db_audit
 FOR EACH STATEMENT EXECUTE FUNCTION axex_bot_db_audit_no_truncate();
 ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS bot_verification_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS unverified_bot_action TEXT NOT NULL DEFAULT 'restrict' CHECK (unverified_bot_action IN ('alert','restrict','kick'));
-ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS blocked_bot_action TEXT NOT NULL DEFAULT 'ban' CHECK (blocked_bot_action IN ('alert','kick','ban'));
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS blocked_bot_action TEXT NOT NULL DEFAULT 'ban' CHECK (blocked_bot_action IN ('alert', 'kick', 'ban'));
+CREATE TABLE IF NOT EXISTS bot_monitor_state (
+  monitor_name TEXT PRIMARY KEY,
+  last_run_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 -- Apply with a migration transaction in Neon. These role statements are intentionally not run by Axex.
 -- REVOKE INSERT, UPDATE, DELETE ON global_bots, bot_db_audit FROM axex_bot;
 -- GRANT SELECT ON global_bots, bot_db_audit TO axex_bot;
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON guild_bot_whitelist, bot_verification_log TO axex_bot;
+-- GRANT SELECT, INSERT, UPDATE ON bot_monitor_state TO axex_bot;
 -- GRANT USAGE, SELECT ON SEQUENCE bot_verification_log_id_seq TO axex_bot;
 -- CREATE ROLE axex_admin_rw LOGIN PASSWORD '<GENERATE-IN-NEON>'; -- store only in encrypted botdb vault
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON global_bots TO axex_admin_rw;
