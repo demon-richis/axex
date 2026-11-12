@@ -1,0 +1,4 @@
+const fs = require("fs"); const path = require("path");
+const root = path.resolve(__dirname, ".."); const hooks = path.join(root, ".git", "hooks"); const file = path.join(hooks, "pre-commit");
+const script = `#!/usr/bin/env node\nconst cp = require("child_process");\nconst blocked = /(^|\\/)(bots\\.csv|\\.env\\.admin)(\\/|$)|(^|\\/)\\.botdb(\\/|$)/i;\nconst names = cp.execFileSync("git", ["diff", "--cached", "--name-only", "--diff-filter=ACMR"], { encoding: "utf8" }).split(/\\r?\\n/).filter(Boolean);\nconst bad = names.filter((name) => blocked.test(name.replaceAll("\\\\", "/")));\nif (bad.length) { console.error("Refusing to commit protected bot database files:\\n" + bad.join("\\n")); process.exit(1); }\n`;
+fs.mkdirSync(hooks, { recursive: true }); fs.writeFileSync(file, script, { mode: 0o755 }); console.log("Installed cross-platform bot database pre-commit hook.");

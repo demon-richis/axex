@@ -1,0 +1,4 @@
+id,status,name,note
+00000000000000001,verified,Example Sentinel,Fake example only
+00000000000000002,blocked,Example Impostor,Fake example only
+00000000000000003,unverified,Example Review,Fake example only
