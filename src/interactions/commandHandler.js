@@ -5,6 +5,7 @@ const quarantine = require("../commands/quarantine");
 const verificationLog = require("../commands/verificationLog");
 const axex = require("../commands/axex");
 const ping = require("../commands/ping");
+const botVerification = require("../commands/botVerification");
 const embeds = require("../config/messages");
 
 const commands = {
@@ -13,6 +14,7 @@ const commands = {
   quarantine,
   axex,
   ping,
+  "bot-verification": botVerification,
   "verification-log": verificationLog,
 };
 

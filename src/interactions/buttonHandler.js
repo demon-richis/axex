@@ -4,6 +4,7 @@ const { handleVerifyStart } = require("../verification/verifySystem");
 const { handleSetupButton, handleRoleSelect } = require("../commands/vsetup");
 const embeds = require("../config/messages");
 const logSelectHandler = require("./logSelectHandler");
+const { botVerificationStore } = require("../db/client");
 
 async function execute(interaction) {
   if (interaction.isStringSelectMenu() && /^vlog:[1-9][0-9]{7}$/.test(interaction.customId)) {
@@ -16,6 +17,40 @@ async function execute(interaction) {
     interaction.customId.startsWith("axex_setup_roles_")
   ) {
     await handleRoleSelect(interaction);
+    return;
+  }
+
+  const review = /^axex_botverify:(approve|deny):([1-9][0-9]{7})$/.exec(interaction.customId || "");
+  if (interaction.isButton() && review) {
+    try {
+      const action = review[1];
+      const caseCode = review[2];
+      const allowed = interaction.guild && (interaction.user.id === interaction.guild.ownerId || interaction.member?.permissions?.has?.("ManageGuild") || interaction.member?.permissions?.has?.("Administrator"));
+      if (!allowed) {
+        await interaction.reply({ content: "Only the server owner or an Axex administrator may review this bot.", flags: MessageFlags.Ephemeral });
+        return;
+      }
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const row = await botVerificationStore.getLogByCase(interaction.guild.id, caseCode);
+      if (!row || !["unverified", "impersonation_suspect"].includes(row.result)) {
+        await interaction.editReply("This bot-verification case is stale or already resolved.");
+        return;
+      }
+      const member = await interaction.guild.members.fetch(row.bot_id).catch(() => null);
+      if (action === "approve") {
+        if (member?.roles?.highest && row.original_permissions) await member.roles.highest.setPermissions(BigInt(row.original_permissions), "Axex bot verification approval");
+        await botVerificationStore.whitelist(interaction.guild.id, row.bot_id, interaction.user.id);
+        await botVerificationStore.markAction(row.id, "approved");
+        await interaction.editReply("Bot approved and added to the server whitelist.");
+      } else {
+        if (member) await member.kick("Axex bot verification denial").catch(() => {});
+        await botVerificationStore.markAction(row.id, "denied");
+        await interaction.editReply("Bot denied and removed from the server.");
+      }
+    } catch {
+      if (interaction.deferred || interaction.replied) await interaction.editReply("This bot-verification action could not be completed.").catch(() => {});
+      else await interaction.reply({ content: "This bot-verification action could not be completed.", flags: MessageFlags.Ephemeral }).catch(() => {});
+    }
     return;
   }
 

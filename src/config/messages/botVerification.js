@@ -1,0 +1,8 @@
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const E = require("../../verification/emojis");
+function line(emoji, label, value) { return `${emoji} **${label}:** ${String(value ?? "unknown")}`; }
+function embed(data) { const lines = ["__**Bot Verification**__", line(E.bot, "Bot", `${data.name || "Unknown"} (${data.id})`), line(E.logs, "Result", data.result), line(E.warning, "Reason", data.reason), line(E.protected, "Dangerous permissions", data.dangerous?.join(", ") || "None"), line(E.memberjoined, "Added by", data.addedBy || "unknown"), line(E.arrow, "Action", data.action || "alert"), line(E.logs, "Case ID", data.caseCode)]; if (data.highRisk) lines.splice(2, 0, `${E.warning} **HIGH RISK: Administrator permission detected**`); if (data.fallback) lines.push(line(E.warning, "Fallback", data.fallback)); return new EmbedBuilder().setDescription(lines.join("\n")); }
+function reviewButtons(caseCode) { return [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`axex_botverify:approve:${caseCode}`).setLabel("Approve").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`axex_botverify:deny:${caseCode}`).setLabel("Deny").setStyle(ButtonStyle.Danger))]; }
+function config(data) { return new EmbedBuilder().setDescription(["__**Bot Verification Configuration**__", line(E.protected, "Enabled", data.enabled ? "yes" : "no"), line(E.warning, "Unverified action", data.unverifiedAction), line(E.warning, "Blocked action", data.blockedAction)].join("\n")); }
+function reply(text) { return new EmbedBuilder().setDescription(`${E.arrow} ${text}`); }
+module.exports = { embed, reviewButtons, config, reply };
