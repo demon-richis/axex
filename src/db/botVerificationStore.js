@@ -12,6 +12,17 @@ function createBotVerificationStore(getSql) {
     async verifiedNames() {
       return getSql()`SELECT bot_id, name FROM global_bots WHERE status = 'verified' AND name IS NOT NULL`;
     },
+    async discordVerifiedBots() {
+      return getSql()`SELECT bot_id, name FROM global_bots WHERE source = 'discord_verified'`;
+    },
+    async monitorLastRun(name) {
+      const rows = await getSql()`SELECT last_run_at FROM bot_monitor_state WHERE monitor_name = ${name}`;
+      return rows[0]?.last_run_at || null;
+    },
+    async markMonitorRun(name, at = new Date()) {
+      await getSql()`INSERT INTO bot_monitor_state (monitor_name, last_run_at) VALUES (${name}, ${at}) ON CONFLICT (monitor_name) DO UPDATE SET last_run_at = EXCLUDED.last_run_at, updated_at = NOW()`;
+      return true;
+    },
     async log(data) {
       const rows = await getSql()`INSERT INTO bot_verification_log (case_code, guild_id, bot_id, bot_name, result, reason, added_by, permissions, original_permissions, dangerous_permissions, action_taken, fallback_used) VALUES (${data.caseCode}, ${data.guildId}, ${data.botId}, ${data.botName || null}, ${data.result}, ${data.reason}, ${data.addedBy || null}, ${data.permissions || null}, ${data.originalPermissions || null}, ${data.dangerousPermissions || []}, ${data.actionTaken || null}, ${Boolean(data.fallbackUsed)}) RETURNING id`;
       return rows[0] || null;
