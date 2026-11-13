@@ -1,0 +1,2 @@
+const test = require("node:test"); const assert = require("node:assert/strict"); const { registerBotVerificationMonitors } = require("../index");
+test("runtime registers role-update and weekly bot monitors", () => { const events = []; const client = { on(name) { events.push(name); } }; const stop = registerBotVerificationMonitors(client); assert.ok(events.includes("guildMemberUpdate")); assert.equal(typeof stop, "function"); stop(); });

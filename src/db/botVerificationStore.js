@@ -1,4 +1,3 @@
-const { auditEntryHash } = require("../verification/botVerification");
 function createBotVerificationStore(getSql) {
   return {
     async findGlobalBot(guildId, botId) {

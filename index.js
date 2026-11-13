@@ -56,6 +56,15 @@ function logSuccessEmojiAvailability(client) {
   }
 }
 
+function registerBotVerificationMonitors(client) {
+  client.on("guildMemberUpdate", (oldMember, newMember) => {
+    botVerificationMonitor.handleRoleUpdate(oldMember, newMember).catch((error) => {
+      console.error("Bot verification role monitor failed:", error.message);
+    });
+  });
+  return botVerificationMonitor.start(client);
+}
+
 async function start() {
   const runtime = validateRuntimeEnvironment();
   const client = createClient();
@@ -80,11 +89,7 @@ async function start() {
       console.error(`guildMemberAdd failed for ${member.guild.id}/${member.id}:`, error);
     });
   });
-  client.on("guildMemberUpdate", (oldMember, newMember) => {
-    botVerificationMonitor.handleRoleUpdate(oldMember, newMember).catch((error) => {
-      console.error("Bot verification role monitor failed:", error.message);
-    });
-  });
+  stopBotVerificationMonitor = registerBotVerificationMonitors(client);
   client.on("interactionCreate", (interaction) => {
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
       buttonHandler.execute(interaction, client).catch((error) => console.error("Button interaction failed:", error));
@@ -111,7 +116,6 @@ async function start() {
       logSuccessEmojiAvailability(client);
       const { startIntelligenceKeepAlive } = require("./src/utils/intelligenceKeepAlive");
       startIntelligenceKeepAlive();
-      stopBotVerificationMonitor = botVerificationMonitor.start(client);
             startOutboxPoller();
       console.log(`Axex online — ${client.user.tag}`);
       console.log(`Serving ${client.guilds.cache.size} server(s)`);
@@ -157,4 +161,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createClient, start };
+module.exports = { createClient, start, registerBotVerificationMonitors };
