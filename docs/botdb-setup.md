@@ -5,3 +5,7 @@ Run the additive migration in `src/db/migrations/20261112_bot_verification.sql` 
 Never run the migration or tool against production during development. The bot never writes `global_bots`. The terminal tool requires a hidden passphrase and a separate keyfile; losing either requires re-running setup and rotating the RW password in Neon. The local lockout file can be deleted by someone with disk access, which is why both factors and vault encryption are required.
 
 Recommended order: create Neon roles, apply migrations to a TEST branch, run `node scripts/botdb setup`, run `node scripts/botdb scan`, inspect with `sync --dry-run`, then run `sync`. Keep the keyfile in a different physical location from `.env.admin` and keep a backup. Do not commit either file.
+
+The authenticated sync opens a dedicated Neon `Client` transaction and takes a transaction-scoped advisory lock. Do not provide a pooled or PgBouncer transaction-mode URL to the admin tool. `check`, `list`, `stats`, `export`, and `sync --dry-run` use `BOTDB_READONLY_URL` or `DATABASE_URL` without write authentication.
+
+`AUDIT_WEBHOOK_URL` is intentionally read from the process environment before vault unlock so failed-authentication and lockout alerts can be sent. It is not protected by `.env.admin`; protect it as a separate operational secret. Webhook failure is non-fatal and produces a warning.
