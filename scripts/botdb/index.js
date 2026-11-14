@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const readline = require("readline");
+const dotenv = require("dotenv");
 const { parseCsv, serializeCsv } = require("./lib/csv");
 const { encryptVault, decryptVault } = require("./lib/vault");
 const { scanRows } = require("./lib/scan");
@@ -14,6 +15,7 @@ const { readSecret } = require("./lib/secretInput");
 const { makeUi, decryptIntro, PALETTE } = require("./lib/ui");
 
 const root = path.resolve(__dirname, "../..");
+dotenv.config({ path: path.join(root, ".env") });
 const banner = "  █████╗ ██╗  ██╗███████╗██╗  ██╗\n ██╔══██╗╚██╗██╔╝██╔════╝╚██╗██╔╝\n ███████║ ╚███╔╝ █████╗   ╚███╔╝ \n ██╔══██║ ██╔██╗ ██╔══╝   ██╔██╗ \n ██║  ╚═╝██╔╝ ██╗███████╗██╔╝ ██╗\n ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝";
 const usage = "Usage: node scripts/botdb <setup|scan|set|check|list|stats|export|sync|rotate|lock|panic|ui-demo> [--fast|--no-anim]";
 
