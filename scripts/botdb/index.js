@@ -90,7 +90,11 @@ async function setup(c) {
   fs.mkdirSync(path.dirname(c.keyfile), { recursive: true, mode: 0o700 });
   const key = crypto.randomBytes(32);
   fs.writeFileSync(c.keyfile, key, { mode: 0o600 });
-  const rw = await c.promptHidden(`${c.ui.layer(2, "RW CONNECTION STRING")} `);
+  let rw = "";
+  while (!rw || rw.trim().length === 0) {
+    rw = await c.promptHidden(`${c.ui.layer(2, "RW CONNECTION STRING")} `);
+    if (!rw || rw.trim().length === 0) c.ui.write(`${c.ui.red("[-] RW connection string is required. Try again.")}\n`);
+  }
   fs.writeFileSync(c.vaultFile, JSON.stringify(encryptVault(rw, pass, key)) + "\n", { mode: 0o600 });
   c.ui.write(`${c.ui.box("ACCESS GRANTED - CLEARANCE LEVEL 5")}\n`);
   c.ui.write(`${c.ui.dim("Keep the keyfile separate from .env.admin and back it up.")}\n`);

@@ -74,6 +74,12 @@ test("new-passphrase rejection and all secret output remain redacted", async () 
   const combined = output.join(""); for (const secret of ["bad", "Strong passphrase 123!", "postgres://fake"]) assert.equal(combined.includes(secret), false); assert.equal(fs.existsSync(path.join(dir, ".env.admin")), true);
 });
 
+test("setup rejects an empty RW connection string and reprompts without echoing it", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "axex-ui-rw-")); const output = []; const values = ["Strong passphrase 123!", "Strong passphrase 123!", "", "postgres://fake"];
+  await main(["setup", "--fast"], { root: dir, isTTY: false, stdout: { isTTY: false, write: (value) => output.push(String(value)) }, promptHidden: async () => values.shift() });
+  assert.equal(fs.existsSync(path.join(dir, ".env.admin")), true); assert.equal(values.length, 0); assert.equal(output.join("").includes("postgres://fake"), false);
+});
+
 test("UI has no ANSI in NO_COLOR mode and uses green ANSI in truecolor mode", () => {
   const plain = makeUi({ isTTY: true, env: { NO_COLOR: "1" }, stdout: { isTTY: true, columns: 80, write() {} } });
   assert.equal(/\u001b\[/.test(plain.banner("AXEX")), false);
