@@ -32,7 +32,7 @@ function makeUi({ stdout = process.stdout, env = process.env, isTTY = Boolean(st
     red: (text) => paint(text, PALETTE.red),
     yellow: (text) => paint(text, PALETTE.yellow),
     grey: (text) => paint(text, PALETTE.grey),
-    canAnimate: (flags = {}) => Boolean(isTTY && color.enabled && columns >= 60 && !flags.fast && !flags.noAnim),
+    canAnimate: (flags = {}) => Boolean(isTTY && color.enabled && !flags.fast && !flags.noAnim),
     clearLine: () => write("\r\u001b[2K"),
     cursorHide: () => write("\u001b[?25l"),
     cursorShow: () => write("\u001b[?25h"),
@@ -47,18 +47,34 @@ function makeUi({ stdout = process.stdout, env = process.env, isTTY = Boolean(st
   return ui;
 }
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+function visibleWidth(value) { return String(value).replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "").length; }
 async function decryptIntro({ ui, text, fast = false, noAnim = false, sleepImpl = sleep, random = Math.random } = {}) {
-  if (!ui.canAnimate({ fast, noAnim })) { ui.write(ui.banner(text) + "\n"); return; }
+  const rawLines = String(text).split("\n");
+  const height = rawLines.length;
+  const maxWidth = Math.max(...rawLines.map(visibleWidth), 0);
+  const fits = ui.columns >= maxWidth + 2;
+  if (!ui.canAnimate({ fast, noAnim }) || !fits) { ui.write(ui.banner(text) + "\n"); return; }
   const glyphs = "01#$%&@ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lines = String(text).split("\n");
+  const widthLimit = Math.max(1, ui.columns - 1);
+  const lines = rawLines.map((line) => Array.from(line).slice(0, widthLimit).join(""));
+  let cancelled = false;
+  let active = true;
+  const cleanup = () => { if (!active) return; active = false; try { process.off?.("SIGINT", onSignal); } catch {} try { process.off?.("uncaughtException", onException); } catch {} ui.cursorShow(); };
+  const onSignal = () => { cancelled = true; cleanup(); process.exitCode = 130; };
+  const onException = (error) => { cleanup(); process.nextTick(() => { throw error; }); };
+  const frame = (resolved) => {
+    const output = resolved ? ui.banner(lines.join("\n")) : lines.map((line) => ui.bright(line.split("").map((character) => character === " " ? " " : glyphs[Math.floor(random() * glyphs.length)]).join(""))).join("\n");
+    for (const line of output.split("\n")) ui.write(`\r\u001b[2K${line}\n`);
+  };
   ui.cursorHide();
+  process.once("SIGINT", onSignal);
+  process.once("uncaughtException", onException);
   try {
-    for (let frame = 0; frame < 8; frame += 1) {
-      ui.write("\u001b[2J\u001b[H");
-      ui.write(lines.map((line) => line.split("").map((character) => character === " " ? " " : frame === 7 ? character : glyphs[Math.floor(random() * glyphs.length)]).join("")).join("\n"));
-      await sleepImpl(90);
+    for (let current = 0; current < 8 && !cancelled; current += 1) {
+      if (current > 0) ui.write(`\u001b[${height}A`);
+      frame(current === 7);
+      if (current < 7) await sleepImpl(90);
     }
-    ui.write("\u001b[2J\u001b[H" + ui.banner(text) + "\n");
-  } finally { ui.cursorShow(); }
+  } finally { cleanup(); }
 }
 module.exports = { PALETTE, RESET, detectColor, makeUi, decryptIntro, sleep };
