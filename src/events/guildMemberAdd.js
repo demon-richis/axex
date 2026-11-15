@@ -70,10 +70,7 @@ async function processJoinAfterRole(member, config) {
     );
   }
 
-  if (
-    intelligenceResult?.recommendation === "block" ||
-    intelligenceResult?.riskLevel === "critical"
-  ) {
+  if (intelligenceResult?.recommendation === "block") {
     await quarantineUser(member, config, "INTELLIGENCE_BLOCK", {
       state: await getGuildState(guild.id),
       action: "INTELLIGENCE BLOCKED",
