@@ -32,6 +32,7 @@ function makeSqlTag(database) {
 const config = {
   verified_role_id: "role-verified",
   unverified_role_id: "role-unverified",
+  quarantined_role_id: "role-quarantined",
   log_channel_id: null,
 };
 
@@ -46,15 +47,16 @@ function makeGuild(guildId) {
   };
   guild.addMember = (userId) => {
     const roleIds = new Set(["role-unverified"]);
+    if (userId === "user-passed-with-quarantine") roleIds.add("role-quarantined");
     const member = {
       id: userId,
       guild,
       user: { tag: `mock-${userId}`, createdTimestamp: Date.now() - 10 * 86_400_000 },
       roles: {
         cache: { has: (roleId) => roleIds.has(roleId) },
-        remove: async () => {
+        remove: async (roleId) => {
           roles.removeCalls += 1;
-          roleIds.delete("role-unverified");
+          roleIds.delete(roleId);
         },
         add: async () => {
           roles.addCalls += 1;
@@ -86,7 +88,7 @@ const guild1 = makeGuild("guild-test");
 const guild2 = makeGuild("guild-other");
 guilds.set(guild1.id, guild1);
 guilds.set(guild2.id, guild2);
-for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine", "user-strong-reference"]) {
+for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine", "user-strong-reference", "user-passed-with-quarantine"]) {
   guild1.addMember(id);
 }
 guild2.addMember("user-test");
@@ -243,6 +245,21 @@ test("valid callback grants roles once and sequential duplicate is idempotent", 
   assert.equal(duplicate.status, 200);
   assert.equal(duplicate.json.idempotent, true);
   assert.equal(roles.addCalls, beforeAdds + 1);
+});
+
+test("passed callback removes a lingering Quarantined role", async () => {
+  const member = guild1.members.fetch
+    ? await guild1.members.fetch("user-passed-with-quarantine")
+    : null;
+  const beforeRemoves = roles.removeCalls;
+  const response = await post(body({
+    referenceId: "AX-ABCD123A",
+    userId: "user-passed-with-quarantine",
+  }));
+  assert.equal(response.status, 200);
+  assert.equal(roles.removeCalls, beforeRemoves + 2);
+  assert.equal(member.roles.cache.has("role-quarantined"), false);
+  assert.equal(member.roles.cache.has("role-verified"), true);
 });
 
 test("same reference with changed user, guild, or result cannot trigger side effects", async () => {

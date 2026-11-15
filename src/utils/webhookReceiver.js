@@ -524,6 +524,9 @@ app.post("/webhook/verify-result", async (req, res) => {
       if (!roleCache || roleCache.has(config.unverified_role_id)) {
         await member.roles.remove(config.unverified_role_id);
       }
+      if (config.quarantined_role_id && (!roleCache || roleCache.has(config.quarantined_role_id))) {
+        await member.roles.remove(config.quarantined_role_id);
+      }
       if (!roleCache || !roleCache.has(config.verified_role_id)) {
         await member.roles.add(config.verified_role_id);
       }
