@@ -12,6 +12,7 @@ const {
   recordJoin,
 } = require("../utils/raidDetector");
 const { analyzeUser } = require("../utils/intelligenceClient");
+const { sendLiveUpdate } = require("../utils/liveUpdate");
 const botVerification = require("./botVerification");
 const {
   quarantineUser,
@@ -141,12 +142,29 @@ async function execute(member) {
   const config = check.config;
 
   // Critical path: assign access-control role immediately after Discord emits the join.
-  await member.roles.add(config.unverified_role_id).catch((error) => {
+  let roleError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await member.roles.add(config.unverified_role_id);
+      roleError = null;
+      break;
+    } catch (error) {
+      roleError = error;
+    }
+  }
+  if (roleError) {
     console.error(
       `Could not add Unverified role to ${guild.id}/${member.id}:`,
-      error.message,
+      roleError.message,
     );
-  });
+    await sendLiveUpdate(guild, {
+      logType: "unverifiedRoleFailed",
+      member,
+      roleName: "Unverified",
+      stage: "guildMemberAdd",
+      error: roleError.message,
+    });
+  }
   const verifyChannel = guild.channels.cache.get(config.verify_channel_id);
   if (verifyChannel) {
     void verifyChannel
