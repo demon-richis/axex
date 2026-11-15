@@ -88,7 +88,7 @@ const guild1 = makeGuild("guild-test");
 const guild2 = makeGuild("guild-other");
 guilds.set(guild1.id, guild1);
 guilds.set(guild2.id, guild2);
-for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine", "user-strong-reference", "user-passed-with-quarantine"]) {
+for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine", "user-terminal-quarantine", "user-strong-reference", "user-passed-with-quarantine"]) {
   guild1.addMember(id);
 }
 guild2.addMember("user-test");
@@ -327,7 +327,7 @@ test("Discord role failure queues recovery and a redelivery completes without re
   assert.equal(roles.removeCalls, beforeRemoves + 1);
 });
 
-test("a failed result is quarantined once and replay does not repeat moderation", async () => {
+test("a non-terminal failed result logs and cools down without quarantining", async () => {
   const payload = body({
     referenceId: "AX-ABCD1238",
     userId: "user-quarantine",
@@ -339,11 +339,26 @@ test("a failed result is quarantined once and replay does not repeat moderation"
   const first = await post(payload);
   assert.equal(first.status, 200);
   assert.equal(first.json.passed, false);
-  assert.equal(metrics.quarantine, before + 1);
+  assert.equal(first.json.terminal, false);
+  assert.equal(metrics.quarantine, before);
 
   const duplicate = await post(payload);
   assert.equal(duplicate.status, 200);
   assert.equal(duplicate.json.idempotent, true);
+  assert.equal(metrics.quarantine, before);
+});
+
+test("a terminal failed result quarantines and reports terminal true", async () => {
+  const before = metrics.quarantine;
+  const first = await post(body({
+    referenceId: "AX-ABCD1240",
+    userId: "user-terminal-quarantine",
+    passed: false,
+    attempts: 3,
+    locked: true,
+  }));
+  assert.equal(first.status, 200);
+  assert.equal(first.json.terminal, true);
   assert.equal(metrics.quarantine, before + 1);
 });
 
