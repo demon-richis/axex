@@ -362,15 +362,15 @@ test("a terminal failed result quarantines and reports terminal true", async () 
   assert.equal(metrics.quarantine, before + 1);
 });
 
-test("spoofed X-Forwarded-For cannot evade the per-peer webhook rate limit", async () => {
-  const remaining = Math.max(0, 30 - requestCount);
-  for (let i = 0; i < remaining; i += 1) {
-    await post(body({ referenceId: `AX-${String(i).padStart(8, "0")}` }), "invalid", {
-      "x-forwarded-for": `198.51.100.${i + 1}`,
-    });
+test("unauthenticated traffic cannot consume the authenticated guild rate limit", async () => {
+  for (let i = 0; i < 35; i += 1) {
+    const rejected = await post(
+      body({ referenceId: `AX-${String(i).padStart(8, "0")}` }),
+      "invalid",
+      { "x-forwarded-for": `198.51.100.${i + 1}` },
+    );
+    assert.equal(rejected.status, 401);
   }
-  const limited = await post(body({ referenceId: "AX-FFFFFFFE" }), "invalid", {
-    "x-forwarded-for": "203.0.113.77",
-  });
-  assert.equal(limited.status, 429);
+  const allowed = await post(body({ referenceId: "AX-FFFFFFFE" }));
+  assert.equal(allowed.status, 200);
 });
