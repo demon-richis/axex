@@ -434,8 +434,7 @@ app.post("/webhook/verify-result", async (req, res) => {
         ? "VPN_PROXY_DETECTED"
         : flagReason || failureReason || "VERIFICATION_FAILED";
       const terminal = Boolean(vpnDetected || locked || (attempts ?? 0) >= 3);
-
-      await quarantineUser(member, config, reason, {
+      const failureOptions = {
         state,
         action: vpnDetected
           ? "VPN BLOCKED"
@@ -464,7 +463,27 @@ app.post("/webhook/verify-result", async (req, res) => {
             : "wrongAnswer",
         referenceId: normalizedReferenceId,
         eventId: `VERIFY-${normalizedReferenceId}`,
-      });
+      };
+      if (terminal) {
+        await quarantineUser(member, config, reason, failureOptions);
+      } else {
+        await sendLiveUpdate(member.guild, {
+          action: "VERIFICATION FAILED",
+          logType: "wrongAnswer",
+          member,
+          referenceId: normalizedReferenceId,
+          caseCode,
+          accountAge,
+          attempts: failureOptions.attempts,
+          reason,
+          ipFlagged: Boolean(flagged),
+          vpnDetected: Boolean(vpnDetected),
+          botDetected: Boolean(botDetected),
+          honeypot: Boolean(honeypotTriggered),
+          networkSignals,
+          eventId: `VERIFY-${normalizedReferenceId}`,
+        });
+      }
       const completed = await completeVerificationCallback(
         normalizedReferenceId,
         callbackClaimId,
@@ -491,7 +510,7 @@ app.post("/webhook/verify-result", async (req, res) => {
           vpnDetected: Boolean(vpnDetected),
           attempts: attempts ?? 1,
           terminal,
-          quarantined: true,
+          quarantined: terminal,
           referenceId,
         },
       }).catch(() => {});
