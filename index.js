@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const { Client, GatewayIntentBits, PermissionFlagsBits } = require("discord.js");
-const { initDB } = require("./src/db/client");
+const { initDB, getGuildConfig } = require("./src/db/client");
 const { syncAllGuilds: syncGuildPermissions } = require("./src/utils/syncGuilds");
 const { upsertGuild, markGuildRemoved, syncAllGuilds: syncBotGuilds, startGuildHeartbeat } = require("./src/utils/guildSync");
 const memberAdd = require("./src/events/guildMemberAdd");
@@ -18,6 +18,7 @@ const {
   stopWebhookReceiver,
 } = require("./src/utils/webhookReceiver");
 const botVerificationMonitor = require("./src/monitoring/botVerificationMonitor");
+const { logRoleHealth } = require("./src/utils/roleHealth");
 
 function createClient() {
   return new Client({
@@ -110,6 +111,12 @@ async function start() {
     try {
       if (!(await initDB())) throw new Error("Database schema initialization failed");
       await syncBotGuilds(client);
+      await Promise.all(
+        [...client.guilds.cache.values()].map(async (guild) => {
+          const config = await getGuildConfig(guild.id).catch(() => null);
+          if (config?.setup_done) await logRoleHealth(guild, config, "startup");
+        }),
+      );
       startGuildHeartbeat(client);
       await syncGuildPermissions(client);
       startCaseSweeper(client);

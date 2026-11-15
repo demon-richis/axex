@@ -49,6 +49,7 @@ function isSupported(data) {
     data?.logType === "intelligenceAnalysis" ||
     data?.logType === "serviceError" ||
     data?.logType === "roleUpdateFailed" ||
+    data?.logType === "unverifiedRoleFailed" ||
     data?.logType === "expired" ||
     isFinal(data)
   );
@@ -155,7 +156,11 @@ function mergeSummary(existing, data, row) {
     summary.flags.networkSignals = summary.intelligence.reasons;
   }
 
-  if (data.logType === "serviceError" || data.logType === "roleUpdateFailed") {
+  if (
+    data.logType === "serviceError" ||
+    data.logType === "roleUpdateFailed" ||
+    data.logType === "unverifiedRoleFailed"
+  ) {
     const errorMessage = String(data.error || "Unknown error").slice(0, 500);
     if (!/IP_LOOKUP_FAILED/i.test(errorMessage)) {
       summary.errors.push({

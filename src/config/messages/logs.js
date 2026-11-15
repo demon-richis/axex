@@ -40,7 +40,7 @@ function statusFor(state) {
   if (state?.status === "verified" || final.logType === "verified" || action === "VERIFIED") return "SUCCESS";
   if (state?.status === "quarantined" || final.logType === "vpnDetected" ||
       final.logType === "locked" || action.includes("QUARANTIN") || action.includes("BLOCKED")) return "QUARANTINED";
-  if (state?.status === "failed" || ["wrongAnswer", "timedOut", "botDetected"].includes(final.logType) ||
+  if (state?.status === "failed" || ["wrongAnswer", "timedOut", "botDetected", "unverifiedRoleFailed"].includes(final.logType) ||
       action.includes("FAILED")) return "FAILED";
   return "IN PROGRESS";
 }

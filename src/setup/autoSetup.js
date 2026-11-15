@@ -11,6 +11,7 @@ const {
 const embeds = require("../config/messages");
 const websiteUrl = require("../utils/websiteUrl");
 const { getPortalApiKey } = require("../config/runtime");
+const { logRoleHealth } = require("../utils/roleHealth");
 
 const ROLE_DEFINITIONS = Object.freeze([
   { name: "Verified", color: 0x00ff88, hoist: true },
@@ -630,6 +631,7 @@ async function autoSetup(guild, options = {}) {
           failed.push("Final resource ID validation failed");
           throw new SetupError(completed, failed);
         }
+        const roleHealth = await logRoleHealth(guild, config, "setup");
         await logChannel.send({
           embeds: [
             embeds.setup.success({
@@ -650,6 +652,12 @@ async function autoSetup(guild, options = {}) {
         });
         if (!stats.hierarchyOk)
           await logChannel.send({ embeds: [embeds.setup.roleHierarchyWarn()] });
+        if (!roleHealth.ok) {
+          await logChannel.send({
+            content: `[Axex Health] ${roleHealth.issues.join("; ")}`,
+            allowedMentions: { parse: [] },
+          });
+        }
       },
     );
     if (failed.length) throw new SetupError(completed, failed);
