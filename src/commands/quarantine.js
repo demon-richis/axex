@@ -7,6 +7,8 @@ const {
   resolveQuarantineCase,
 } = require("../db/client");
 const messages = require("../config/messages");
+const { getPortalApiKey } = require("../config/runtime");
+const websiteUrl = require("../utils/websiteUrl");
 
 async function execute(interaction) {
   if (!interaction.guild) {
@@ -65,6 +67,20 @@ async function execute(interaction) {
       return;
     }
     try {
+      const portalResponse = await fetch(websiteUrl("/api/bot/release"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": getPortalApiKey(),
+        },
+        body: JSON.stringify({
+          guildId: interaction.guild.id,
+          userId: member.id,
+        }),
+      });
+      if (!portalResponse.ok) {
+        throw new Error(`Portal release failed (HTTP ${portalResponse.status})`);
+      }
       await member.roles.remove(config.quarantined_role_id);
       await member.roles.add(config.unverified_role_id);
       await resolveQuarantineCase(
