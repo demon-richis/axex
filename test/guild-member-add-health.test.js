@@ -16,7 +16,7 @@ function mockModule(request, exports) {
   return resolved;
 }
 
-const state = { updates: [] };
+const state = { updates: [], intelligence: null, quarantines: [] };
 const mocked = [
   mockModule("../src/db/client", {
     async getGuildConfig() { return null; },
@@ -42,20 +42,20 @@ const mocked = [
     recordJoin() { return false; },
   }),
   mockModule("../src/utils/intelligenceClient", {
-    async analyzeUser() { return null; },
+    async analyzeUser() { return state.intelligence; },
   }),
   mockModule("../src/utils/liveUpdate", {
     async sendLiveUpdate(_guild, data) { state.updates.push(data); },
   }),
   mockModule("../src/events/botVerification", { async execute() {} }),
   mockModule("../src/verification/verifySystem", {
-    async quarantineUser() {},
+    async quarantineUser(_member, _config, reason) { state.quarantines.push(reason); },
     async recordAction() {},
   }),
 ];
 const { execute } = require("../src/events/guildMemberAdd");
 
-function makeMember() {
+function makeMember({ failRoles = true } = {}) {
   let attempts = 0;
   return {
     id: "user-1",
@@ -67,7 +67,7 @@ function makeMember() {
     roles: {
       async add() {
         attempts += 1;
-        throw new Error(`role failure ${attempts}`);
+        if (failRoles) throw new Error(`role failure ${attempts}`);
       },
       get attempts() { return attempts; },
     },
@@ -86,6 +86,28 @@ test("failed Unverified assignment is retried once and logged with unverifiedRol
   assert.equal(state.updates[0].logType, "unverifiedRoleFailed");
   assert.equal(state.updates[0].error, "role failure 2");
   assert.equal(state.updates[0].roleName, "Unverified");
+});
+
+test("recommendation block quarantines a join", async () => {
+  state.intelligence = { recommendation: "block", riskLevel: "high" };
+  state.quarantines.length = 0;
+
+  await execute(makeMember({ failRoles: false }));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(state.quarantines, ["INTELLIGENCE_BLOCK"]);
+  state.intelligence = null;
+});
+
+test("recommendation queue reaches the review quarantine branch", async () => {
+  state.intelligence = { recommendation: "queue", riskLevel: "critical" };
+  state.quarantines.length = 0;
+
+  await execute(makeMember({ failRoles: false }));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(state.quarantines, ["INTELLIGENCE_RECOMMENDATION_REVIEW"]);
+  state.intelligence = null;
 });
 
 test.after(() => {
