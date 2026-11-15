@@ -308,7 +308,9 @@ async function handleVerifyStart(interaction, config, options = {}) {
         userId: member.id,
       });
       let created = null;
-      for (let attempt = 0; attempt < 5; attempt += 1) {
+      const retryDeadline = Date.now() + 12_000;
+      for (let attempt = 0; attempt < 5 && Date.now() < retryDeadline; attempt += 1) {
+        const timeoutMs = Math.min(5_000, retryDeadline - Date.now());
         const createRes = await fetch(websiteUrl("/api/bot/token"), {
           method: "POST",
           headers: {
@@ -324,7 +326,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
             expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
             caseCode: reserved.case_code,
           }),
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(timeoutMs),
         });
         console.log("[Verify] Token create status:", createRes.status);
         created = await createRes.json().catch(() => ({}));
@@ -376,47 +378,6 @@ async function handleVerifyStart(interaction, config, options = {}) {
       caseCode = null;
       caseRow = null;
       if (reserved?.id) await caseStore.discard(reserved.id).catch(() => {});
-      console.error("[Verify] Token create failed:", err?.name || "unknown");
-      await sendLiveUpdate(member.guild, {
-        logType: "serviceError",
-        member,
-        stage: "token_create",
-        error: "Token creation request failed",
-      });
-    }
-  }
-
-  if (!token) {
-    const newToken = require("crypto").randomUUID();
-    try {
-      const createRes = await fetch(websiteUrl("/api/bot/token"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": WEBSITE_API_KEY,
-        },
-        body: JSON.stringify({
-          token: newToken,
-          userId: member.id,
-          guildId: interaction.guildId,
-          guildName: interaction.guild.name,
-          guildMemberCount: interaction.guild.memberCount,
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
-      console.log("[Verify] Token create status:", createRes.status);
-      if (createRes.ok) {
-        const created = await createRes.json().catch(() => ({}));
-        token = newToken;
-        referenceId = created?.referenceId || null;
-      } else {
-        console.error(
-          "[Verify] Token create request rejected:",
-          createRes.status,
-        );
-      }
-    } catch (err) {
       console.error("[Verify] Token create failed:", err?.name || "unknown");
       await sendLiveUpdate(member.guild, {
         logType: "serviceError",

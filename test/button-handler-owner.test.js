@@ -9,7 +9,7 @@ const originalWebsiteApiKey = process.env.WEBSITE_API_KEY;
 process.env.WEBSITE_URL = "https://portal.invalid";
 process.env.WEBSITE_API_KEY = "unit-test-key-not-a-secret";
 
-const state = { config: null, configReads: 0 };
+const state = { config: null, configReads: 0, discards: 0 };
 const dbPath = require.resolve("../src/db/client");
 const dbExports = {
   async getGuildConfig() {
@@ -23,6 +23,13 @@ const dbExports = {
   async logQuarantine() {},
   async logVerificationEvent(input) {
     return { eventId: input.eventId || "test-event" };
+  },
+  caseStore: {
+    async reserve() { return { id: 1, case_code: "12345678" }; },
+    async reassignCode() { return { id: 1, case_code: "12345678" }; },
+    async attachToken(id, data) { return { id, case_code: data.caseCode || "12345678" }; },
+    async ensureForReference() { return null; },
+    async discard() { state.discards += 1; return true; },
   },
 };
 require.cache[dbPath] = {
@@ -108,6 +115,7 @@ function setupConfig(overrides = {}) {
     ...overrides,
   };
   state.configReads = 0;
+  state.discards = 0;
 }
 
 function descriptionOf(payload) {
@@ -165,6 +173,40 @@ test("a normal unverified member reaches the existing pending and token creation
   assert.match(requests[0].url, /\/api\/verify\/pending/);
   assert.match(requests[1].url, /\/api\/bot\/token$/);
   assert.match(descriptionOf(edits.at(-1)), /Verification Link Ready/);
+});
+
+test("reserved token failure shows the link error without an orphan token request", async () => {
+  setupConfig();
+  const requests = [];
+  global.fetch = async (url, options = {}) => {
+    requests.push({ url: String(url), options });
+    if (String(url).includes("/api/verify/pending")) {
+      return new Response(JSON.stringify({ token: null }), { status: 200 });
+    }
+    if (String(url).includes("/api/bot/token")) {
+      return new Response(JSON.stringify({ error: "unavailable" }), { status: 503 });
+    }
+    throw new Error("unexpected mocked request URL");
+  };
+  const guild = {
+    id: "guild-1",
+    ownerId: "owner-1",
+    name: "Isolated Test Guild",
+    memberCount: 2,
+  };
+  const member = makeMember(guild, "member-1");
+  const { interaction, edits } = makeInteraction({ member });
+  interaction.guild = guild;
+
+  await execute(interaction);
+
+  assert.equal(requests.length, 2);
+  assert.equal(state.discards, 1);
+  for (const request of requests.slice(1)) {
+    const payload = JSON.parse(request.options.body);
+    assert.equal(payload.caseCode, "12345678");
+  }
+  assert.match(descriptionOf(edits.at(-1)), /Verification Link Failed/);
 });
 
 test("already verified members keep the existing skip behavior and make no portal requests", async () => {
