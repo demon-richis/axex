@@ -82,20 +82,25 @@ test("verification callback rejects malformed authenticated result payloads", as
   assert.equal(JSON.parse(result.body).code, "INVALID_VERIFY_RESULT");
 });
 
-test("untrusted X-Forwarded-For cannot rotate webhook rate-limit buckets", async () => {
-  // Four requests to this socket have already occurred in earlier tests, so
-  // 26 more reach the per-minute allowance of 30.
-  for (let i = 0; i < 26; i += 1) {
+test("authenticated requests are rate-limited independently per guild", async () => {
+  const guildId = "rate-limit-guild";
+  for (let i = 0; i < 30; i += 1) {
     const result = await request("/webhook/verify-result", {
-      headers: { "x-forwarded-for": `198.51.100.${i + 1}` },
-      body: {},
+      headers: { "x-api-key": process.env.AXEX_BOT_API_KEY },
+      body: { guildId, userId: `user-${i}`, passed: "true" },
     });
-    assert.equal(result.status, 401, `request ${i + 1} should reach authentication`);
+    assert.equal(result.status, 400, `request ${i + 1} should reach payload validation`);
   }
   const limited = await request("/webhook/verify-result", {
-    headers: { "x-forwarded-for": "203.0.113.254" },
-    body: {},
+    headers: { "x-api-key": process.env.AXEX_BOT_API_KEY },
+    body: { guildId, userId: "limited-user", passed: "true" },
   });
   assert.equal(limited.status, 429);
   assert.equal(JSON.parse(limited.body).error, "Rate limit exceeded");
+
+  const separateGuild = await request("/webhook/verify-result", {
+    headers: { "x-api-key": process.env.AXEX_BOT_API_KEY },
+    body: { guildId: "separate-guild", userId: "separate-user", passed: "true" },
+  });
+  assert.equal(separateGuild.status, 400);
 });

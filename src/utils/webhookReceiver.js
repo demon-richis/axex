@@ -91,18 +91,17 @@ app.get("/ready", (_req, res) => {
 });
 
 app.use("/webhook", (req, res, next) => {
-  // Do not trust X-Forwarded-For unless a known reverse proxy is explicitly
-  // configured. A direct caller can supply that header and rotate rate-limit
-  // buckets. The socket peer is the safe default for this standalone listener.
-  const address = String(req.socket.remoteAddress || "unknown");
+  if (!validateKey(req, res)) return;
+  req.webhookAuthenticated = true;
+  const guildId = String(req.body?.guildId || "unknown").trim() || "unknown";
   const now = Date.now();
-  const current = webhookBuckets.get(address);
+  const current = webhookBuckets.get(guildId);
   const bucket =
     !current || now - current.startedAt >= 60_000
       ? { startedAt: now, count: 0 }
       : current;
   bucket.count += 1;
-  webhookBuckets.set(address, bucket);
+  webhookBuckets.set(guildId, bucket);
   if (webhookBuckets.size > 10_000) {
     for (const [key, value] of webhookBuckets) {
       if (now - value.startedAt > 120_000) webhookBuckets.delete(key);
@@ -148,8 +147,6 @@ function validateKey(req, res) {
 }
 
 app.post("/webhook/intelligence-event", async (req, res) => {
-  if (!validateKey(req, res)) return;
-
   const { guildId, userId, referenceId, source, result } = req.body || {};
   if (!guildId || !userId || !result || typeof result !== "object") {
     return res
@@ -205,8 +202,6 @@ app.post("/webhook/intelligence-event", async (req, res) => {
 });
 
 app.post("/webhook/verify-result", async (req, res) => {
-  if (!validateKey(req, res)) return;
-
   const payload = req.body || {};
   const {
     guildId,
