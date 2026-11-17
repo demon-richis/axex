@@ -77,6 +77,7 @@ async function execute(interaction) {
           guildId: interaction.guild.id,
           userId: member.id,
         }),
+        signal: AbortSignal.timeout(5000),
       });
       if (!portalResponse.ok) {
         throw new Error(`Portal release failed (HTTP ${portalResponse.status})`);

@@ -106,6 +106,8 @@ test("release calls the portal exactly once before swapping roles and resolves t
     guildId: "guild-1",
     userId: "user-1",
   });
+  assert.ok(requests[0].options.signal instanceof AbortSignal);
+  assert.equal(requests[0].options.signal.aborted, false);
   assert.equal(requests[0].options.headers["x-api-key"], "unit-test-key-not-a-secret");
   assert.deepEqual(roleChanges, [
     ["remove", "quarantine-role"],
