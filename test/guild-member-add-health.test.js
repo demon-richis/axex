@@ -16,7 +16,7 @@ function mockModule(request, exports) {
   return resolved;
 }
 
-const state = { updates: [], intelligence: null, quarantines: [] };
+const state = { updates: [], intelligence: null, quarantines: [], events: [] };
 const mocked = [
   mockModule("../src/db/client", {
     async getGuildConfig() { return null; },
@@ -43,6 +43,7 @@ const mocked = [
   }),
   mockModule("../src/utils/intelligenceClient", {
     async analyzeUser() { return state.intelligence; },
+    async recordEvent(...args) { state.events.push(args); },
   }),
   mockModule("../src/utils/liveUpdate", {
     async sendLiveUpdate(_guild, data) { state.updates.push(data); },
@@ -59,7 +60,7 @@ function makeMember({ failRoles = true } = {}) {
   let attempts = 0;
   return {
     id: "user-1",
-    user: { id: "user-1", bot: false, tag: "user#0001" },
+    user: { id: "user-1", bot: false, tag: "user#0001", createdTimestamp: Date.now() - 86_400_000, avatar: null },
     guild: {
       id: "guild-1",
       channels: { cache: new Map() },
@@ -76,6 +77,7 @@ function makeMember({ failRoles = true } = {}) {
 
 test("failed Unverified assignment is retried once and logged with unverifiedRoleFailed", async () => {
   state.updates.length = 0;
+  state.events.length = 0;
   const member = makeMember();
 
   await execute(member);
@@ -86,16 +88,23 @@ test("failed Unverified assignment is retried once and logged with unverifiedRol
   assert.equal(state.updates[0].logType, "unverifiedRoleFailed");
   assert.equal(state.updates[0].error, "role failure 2");
   assert.equal(state.updates[0].roleName, "Unverified");
+  assert.equal(state.events.length, 1);
+  assert.equal(state.events[0][2], "JOIN");
+  assert.ok(state.events[0][3].metadata.accountAgeDays >= 1);
+  assert.equal(state.events[0][3].metadata.avatar, null);
 });
 
 test("recommendation block quarantines a join", async () => {
   state.intelligence = { recommendation: "block", riskLevel: "high" };
   state.quarantines.length = 0;
+  state.events.length = 0;
 
   await execute(makeMember({ failRoles: false }));
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.deepEqual(state.quarantines, ["INTELLIGENCE_BLOCK"]);
+  assert.equal(state.events.length, 1);
+  assert.equal(state.events[0][2], "JOIN");
   state.intelligence = null;
 });
 
