@@ -1,1 +1,16 @@
-0.3 #12a (release portal request timeout) | commit 4ab2321 in demon-richis/axex | tests: node --test test/quarantine-release.test.js (2/2), npm test (160/160), npm run check, node --check src/utils/roleHealth.js, git diff --check | result: passed and pushed to origin/main
+# Axex Fix Report
+
+#1 | commit 4b46219 in demon-richis/axex | tests: targeted quarantine release regression, full Axex suite, syntax checks | result: portal state reset before role swap; passed and pushed
+#6 | commit 2c8b602 in demon-richis/axex | tests: guild-member-add-health regression, full Axex suite, syntax checks | result: Unverified role retry, structured log, startup/setup health checks; passed and pushed
+#7 | commit 9076495 in demon-richis/axex | tests: recommendation branch regressions, full Axex suite, syntax checks | result: block/queue branches follow intelligence recommendation; passed and pushed
+#16 | commit 0a8b281 in demon-richis/axex | tests: webhook callback idempotency regression, full Axex suite, syntax checks | result: passed verification removes lingering Quarantined role; passed and pushed
+#17 | commit e3bfabb in demon-richis/axex | tests: verification-start regression, full Axex suite, syntax checks | result: removed orphan portal-token fallback and bounded reservation retries; passed and pushed
+#19 | commit 0ce33d3 in demon-richis/axex | tests: webhook callback terminal/non-terminal regressions, full Axex suite, syntax checks | result: only terminal failures quarantine; passed and pushed
+#14 | commit 24029b9 in demon-richis/axex | tests: webhook security/callback regressions (16/16), npm test (160/160), npm run check | result: authenticated per-guild rate limiting; passed and pushed
+#5 | commit 09bbf54a2067d4275de5a629f862a16b4ece5aeb in demon-richis/axex-guardian-portal | tests: IP timeout regression (1/1); portal suite documented unrelated OAuth/formatting failures | result: bounded ProxyCheck request timeout; passed and pushed
+#10 | commit 2548c2c in demon-richis/axex-account-intelligence | tests: npm test (13/13), npm run check | result: preserve stored IP on partial analyze; passed and pushed
+#9 | commit 0059951 in demon-richis/axex-account-intelligence | tests: npm test (15/15), npm run check | result: read-only analyze and single JOIN mutation path; passed and pushed
+#3 | commit 74cc671 in demon-richis/axex-guardian-portal | tests: portal intelligence tests (4/4), production build; intelligence companion suite (15/15) | result: observed portal IP forwarded to intelligence; passed and pushed
+0.1 #9b | commit 7e2dc67 in demon-richis/axex | tests: join-flow tests (4/4), npm test (160/160), npm run check | result: one fire-and-forget JOIN event per member join including blocked joins; passed and pushed
+0.2 #8a | commits 27d55cf in demon-richis/axex and b989aae in demon-richis/axex-account-intelligence | tests: npm audit --omit=dev (0 vulnerabilities in both), axex npm test (160/160), intelligence npm test (15/15), syntax checks | result: exact production dependency pins; passed and pushed; two moderate dev-only nodemon/minimatch findings remain outside production scope
+0.3 #12a | commit 4ab2321 in demon-richis/axex | tests: release tests (2/2), npm test (160/160), npm run check | result: five-second timeout on portal release fetch; passed and pushed
