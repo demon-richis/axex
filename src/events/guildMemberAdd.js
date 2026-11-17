@@ -11,7 +11,7 @@ const {
   getRecentJoinCount,
   recordJoin,
 } = require("../utils/raidDetector");
-const { analyzeUser } = require("../utils/intelligenceClient");
+const { analyzeUser, recordEvent } = require("../utils/intelligenceClient");
 const { sendLiveUpdate } = require("../utils/liveUpdate");
 const botVerification = require("./botVerification");
 const {
@@ -57,6 +57,15 @@ async function processJoinAfterRole(member, config) {
   let intelligenceResult = null;
   try {
     const intel = await analyzeUser(member);
+    const accountAgeDays = Number.isFinite(member.user?.createdTimestamp)
+      ? Math.max(0, (Date.now() - member.user.createdTimestamp) / 86_400_000)
+      : null;
+    void recordEvent(member.id, guild.id, "JOIN", {
+      metadata: {
+        accountAgeDays,
+        avatar: member.user?.avatar || null,
+      },
+    });
     if (intel) {
       console.log(
         `[Axex Intelligence] ${member.user.tag} → Score: ${intel.riskScore} | Level: ${intel.riskLevel} | Action: ${intel.recommendation}`,
