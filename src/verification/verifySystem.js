@@ -11,6 +11,7 @@ const { sendLiveUpdate } = require("../utils/liveUpdate");
 const { runPreChecks } = require("../utils/memberChecks");
 const websiteUrl = require("../utils/websiteUrl");
 const { getPortalApiKey } = require("../config/runtime");
+const { buildVerificationPolicy } = require("../utils/verificationPolicy");
 
 function accountAgeDays(member) {
   return Math.max(
@@ -325,6 +326,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
             guildMemberCount: interaction.guild.memberCount,
             expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
             caseCode: reserved.case_code,
+            policy: buildVerificationPolicy(config),
           }),
           signal: AbortSignal.timeout(timeoutMs),
         });

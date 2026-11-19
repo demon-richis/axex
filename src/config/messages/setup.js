@@ -418,3 +418,15 @@ module.exports.success = ({
     ].filter(Boolean).join("\n"),
   );
 };
+module.exports.settings = (config = {}) =>
+  base(
+    0x5865f2,
+    `${E.scan} __**AxeX Verification Settings**__\n` +
+      `${E.invisible} ${E.success} **Attempts:** \`${config.max_attempts ?? 3}\` · **Cooldowns:** \`${config.cooldown_seconds ?? "180 / 10800"}\`\n` +
+      `${E.invisible} ${E.network} **VPN action:** \`${config.vpn_check_enabled === false ? "allow" : "block"}\` · **Honeypot:** \`${config.honeypot_enabled === false ? "flag" : "quarantine"}\`\n` +
+      `${E.invisible} ${E.user} **New account:** \`${config.min_account_age ?? 7} days / ${config.new_account_action === "block" ? "block" : config.new_account_action === "strict" ? "raise_level" : "flag"}\`\n` +
+      `${E.invisible} ${E.timeout} **Verify timeout:** \`${config.verify_timeout ?? 60}s\` · **Review:** \`${config.review_enabled ? "enabled" : "disabled"}\`\n` +
+      `${E.invisible} ${E.warning} **Raid action:** \`${config.suspicious_action === "quarantine" ? "force_review_new_accounts" : "flag"}\` · **Auto verify:** \`${config.auto_verify_enabled ? "enabled" : "disabled"}\`\n` +
+      `${E.invisible} ${E.role} **Member roles:** \`${Array.isArray(config.member_role_ids) ? config.member_role_ids.length : 0} configured\`\n` +
+      `-# ${E.invisible} ${E.reminder} Existing guilds retain legacy defaults until settings are changed.`,
+  );
