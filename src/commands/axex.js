@@ -70,7 +70,18 @@ async function repair(interaction) {
 }
 
 async function execute(interaction) {
-  if (interaction.options.getSubcommand() === "repair")
+  const subcommand = interaction.options.getSubcommand();
+  if (subcommand === "settings") {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const config = await getGuildConfig(interaction.guild.id);
+    if (!config?.setup_done) {
+      await interaction.editReply({ content: embeds.system.axexNotConfigured() });
+      return;
+    }
+    await interaction.editReply({ embeds: [embeds.setup.settings(config)] });
+    return;
+  }
+  if (subcommand === "repair")
     return repair(interaction);
   await interaction.reply({
     content: embeds.system.axexRepairUsage(),

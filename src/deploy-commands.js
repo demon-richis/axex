@@ -165,6 +165,11 @@ const commands = [
     dm_permission: false,
     options: [
       {
+        name: "settings",
+        type: 1,
+        description: "View effective verification policy settings",
+      },
+      {
         name: "repair",
         type: 1,
         description:
