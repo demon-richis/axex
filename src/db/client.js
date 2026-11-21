@@ -7,6 +7,7 @@ const { neon } = require("@neondatabase/serverless");
 const { createVerificationCallbackStore } = require("./verificationCallbackStore");
 const { createCaseStore } = require("./caseStore");
 const { createBotVerificationStore } = require("./botVerificationStore");
+const { VERIFICATION_POLICY_COLUMNS } = require("../utils/verificationPolicy");
 
 let sql = null;
 const guildConfigCache = new Map();
@@ -70,10 +71,36 @@ async function initDB() {
       .map((statement) => statement.trim())
       .filter(Boolean);
     for (const statement of statements) await getSql()(statement);
+    await checkVerificationPolicySchema();
     console.log("NeonDB connected and schema initialized");
     return true;
   } catch (error) {
     console.error("Could not initialize NeonDB schema:", error.message);
+    return false;
+  }
+}
+
+async function checkVerificationPolicySchema() {
+  try {
+    const rows = await getSql()`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'guild_config'
+        AND column_name IN ('max_attempts', 'cooldown_seconds', 'review_enabled',
+          'review_timeout_hours', 'network_fail_mode', 'auto_verify_enabled')
+    `;
+    const present = new Set(rows.map((row) => row.column_name));
+    const missing = VERIFICATION_POLICY_COLUMNS.filter((column) => !present.has(column));
+    if (missing.length > 0) {
+      console.warn(
+        `[Axex] Verification policy migration pending; using legacy defaults for missing columns: ${missing.join(", ")}`,
+      );
+      return false;
+    }
+    return true;
+  } catch (_error) {
+    console.warn("[Axex] Could not inspect verification policy schema; using legacy defaults.");
     return false;
   }
 }
@@ -468,6 +495,7 @@ async function setGuildState(guildId, updates) {
 module.exports = {
   getSql,
   initDB,
+  checkVerificationPolicySchema,
   caseStore,
   getGuildConfig,
   saveGuildConfig,
