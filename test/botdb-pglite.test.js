@@ -10,9 +10,30 @@ async function database() {
   const db = new PGlite();
   await db.exec(fs.readFileSync("src/db/schema.sql", "utf8"));
   await db.exec(fs.readFileSync("src/db/migrations/20261112_bot_verification.sql", "utf8"));
+  await db.exec(fs.readFileSync("src/db/migrations/20261121_verification_policy.sql", "utf8"));
   return db;
 }
 async function close(db) { await db.close(); }
+
+test("verification policy migration supplies current-behavior defaults and guards", async () => {
+  const db = await database();
+  await db.query("INSERT INTO guild_config (guild_id) VALUES ($1)", ["policy-defaults"]);
+  const config = (await db.query(
+    "SELECT max_attempts, cooldown_seconds, review_enabled, review_timeout_hours, network_fail_mode, auto_verify_enabled FROM guild_config WHERE guild_id=$1",
+    ["policy-defaults"],
+  )).rows[0];
+  assert.deepEqual(config, {
+    max_attempts: 3,
+    cooldown_seconds: "180 / 10800",
+    review_enabled: false,
+    review_timeout_hours: 24,
+    network_fail_mode: "closed",
+    auto_verify_enabled: false,
+  });
+  await assert.rejects(() => db.query("UPDATE guild_config SET max_attempts=0 WHERE guild_id='policy-defaults'"));
+  await assert.rejects(() => db.query("UPDATE guild_config SET network_fail_mode='ignore' WHERE guild_id='policy-defaults'"));
+  await close(db);
+});
 
 test("bot verification migration executes and enforces constraints/defaults", async () => {
   const db = await database();
