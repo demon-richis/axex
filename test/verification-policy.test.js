@@ -28,6 +28,38 @@ test("missing legacy settings preserve current verification behavior", () => {
   assert.deepEqual(buildVerificationPolicy({}), DEFAULT_VERIFICATION_POLICY);
 });
 
+test("missing X0.2 columns preserve policy defaults while legacy settings still apply", () => {
+  assert.deepEqual(buildVerificationPolicy({
+    min_account_age: 21,
+    verify_timeout: 90,
+    vpn_check_enabled: false,
+  }), {
+    ...DEFAULT_VERIFICATION_POLICY,
+    newAccountDays: 21,
+    verifyTimeoutSeconds: 90,
+    vpnAction: "allow",
+  });
+});
+
+test("persisted verification policy columns map to the policy contract", () => {
+  assert.deepEqual(buildVerificationPolicy({
+    max_attempts: 6,
+    cooldown_seconds: "60 / 3600",
+    review_enabled: true,
+    review_timeout_hours: 48,
+    network_fail_mode: "open",
+    auto_verify_enabled: true,
+  }), {
+    ...DEFAULT_VERIFICATION_POLICY,
+    maxAttempts: 6,
+    cooldownsSeconds: [60, 3600],
+    reviewEnabled: true,
+    reviewTimeoutHours: 48,
+    networkFailMode: "open",
+    autoVerifyEnabled: true,
+  });
+});
+
 test("policy bounds prevent unsafe legacy values", () => {
   const policy = buildVerificationPolicy({ min_account_age: 9999, verify_timeout: 1 });
   assert.equal(policy.newAccountDays, 365);
