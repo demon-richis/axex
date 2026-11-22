@@ -55,7 +55,7 @@ test("persisted verification policy columns map to the policy contract", () => {
     cooldownsSeconds: [60, 3600],
     reviewEnabled: true,
     reviewTimeoutHours: 48,
-    networkFailMode: "open",
+    networkFailMode: "open_flag",
     autoVerifyEnabled: true,
   });
 });
@@ -84,4 +84,13 @@ test("settings embed exposes all mapped policy controls", () => {
   for (const expected of ["Attempts", "Cooldowns", "VPN action", "Honeypot", "New account", "Verify timeout", "Review", "Raid action", "Auto verify", "Member roles"]) {
     assert.match(description, new RegExp(expected));
   }
+});
+
+test("networkFailMode only ever sends values the portal accepts (closed | open_flag)", () => {
+  // The DB stores 'open'/'closed'; the portal's zod enum is ['closed', 'open_flag']. 'open' must be translated.
+  assert.equal(buildVerificationPolicy({ network_fail_mode: "open" }).networkFailMode, "open_flag");
+  assert.equal(buildVerificationPolicy({ network_fail_mode: "open_flag" }).networkFailMode, "open_flag");
+  assert.equal(buildVerificationPolicy({ network_fail_mode: "closed" }).networkFailMode, "closed");
+  assert.equal(buildVerificationPolicy({ network_fail_mode: "weird" }).networkFailMode, "closed");
+  assert.equal(buildVerificationPolicy({}).networkFailMode, "closed");
 });

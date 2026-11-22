@@ -64,7 +64,7 @@ function buildVerificationPolicy(config = {}) {
     vpnAction: config.vpn_check_enabled === false || config.vpnCheck === false ? "allow" : "block",
     honeypotAction:
       config.honeypot_enabled === false || config.honeypot === false ? "flag" : "quarantine",
-    networkFailMode: networkFailMode === "open" ? "open" : "closed",
+    networkFailMode: networkFailMode === "open" || networkFailMode === "open_flag" ? "open_flag" : "closed",
     verifyTimeoutSeconds: boundedNumber(config.verify_timeout, DEFAULT_VERIFICATION_POLICY.verifyTimeoutSeconds, 15, 900),
     reviewEnabled: reviewEnabled === true,
     reviewTimeoutHours: boundedNumber(reviewTimeoutHours, DEFAULT_VERIFICATION_POLICY.reviewTimeoutHours, 1, 168),
