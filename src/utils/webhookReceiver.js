@@ -211,6 +211,7 @@ app.post("/webhook/verify-result", async (req, res) => {
     vpnDetected,
     botDetected,
     honeypotTriggered,
+    honeypotAction,
     flagged,
     vpnType,
     caseCode,
@@ -446,6 +447,9 @@ app.post("/webhook/verify-result", async (req, res) => {
         vpnDetected: Boolean(vpnDetected),
         botDetected: Boolean(botDetected),
         honeypot: Boolean(honeypotTriggered),
+        honeypotAction: ["flag", "quarantine", "kick", "ban"].includes(honeypotAction)
+          ? honeypotAction
+          : "quarantine",
         networkSignals,
         attempts: Number.isFinite(Number(attempts)) ? Number(attempts) : null,
         caseCode,
@@ -460,7 +464,33 @@ app.post("/webhook/verify-result", async (req, res) => {
         eventId: `VERIFY-${normalizedReferenceId}`,
       };
       if (terminal) {
-        await quarantineUser(member, config, reason, failureOptions);
+        const action = honeypotTriggered ? failureOptions.honeypotAction : "quarantine";
+        if (action === "kick" || action === "ban") {
+          try {
+            if (typeof member[action] !== "function") throw new Error(`Member cannot ${action}`);
+            await member[action](reason);
+            await recordAction(member, state, {
+              action: action.toUpperCase(),
+              dbAction: action.toUpperCase(),
+              color: 0xff0000,
+              reason,
+              accountAge,
+              ipFlagged: Boolean(flagged),
+              botDetected: Boolean(botDetected),
+              honeypot: Boolean(honeypotTriggered),
+              attempts: failureOptions.attempts,
+              caseCode,
+              referenceId: normalizedReferenceId,
+              eventId: `VERIFY-${normalizedReferenceId}`,
+              logType: "locked",
+            });
+          } catch (error) {
+            console.error(`[WebhookReceiver] Could not ${action} honeypot member:`, error.message);
+            await quarantineUser(member, config, reason, failureOptions);
+          }
+        } else {
+          await quarantineUser(member, config, reason, failureOptions);
+        }
       } else {
         await sendLiveUpdate(member.guild, {
           action: "VERIFICATION FAILED",

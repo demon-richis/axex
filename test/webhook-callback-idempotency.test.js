@@ -9,7 +9,7 @@ const { createVerificationCallbackStore } = require("../src/db/verificationCallb
 
 const apiKey = "local-test-api-key-only";
 const roles = { removeCalls: 0, addCalls: 0, failNextAdd: false, holdNextAdd: false };
-const metrics = { quarantine: 0, recordAction: 0, events: 0, audit: 0, retryJobs: [] };
+const metrics = { quarantine: 0, recordAction: 0, events: 0, audit: 0, kick: 0, ban: 0, retryJobs: [] };
 const auditEventIds = new Set();
 const actionEventIds = new Set();
 let db;
@@ -75,6 +75,8 @@ function makeGuild(guildId) {
         },
       },
       fetch: async () => member,
+      kick: async () => { metrics.kick += 1; },
+      ban: async () => { metrics.ban += 1; },
       send: async () => {},
     };
     members.set(userId, member);
@@ -88,7 +90,7 @@ const guild1 = makeGuild("guild-test");
 const guild2 = makeGuild("guild-other");
 guilds.set(guild1.id, guild1);
 guilds.set(guild2.id, guild2);
-for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine", "user-terminal-quarantine", "user-strong-reference", "user-passed-with-quarantine"]) {
+for (const id of ["user-test", "user-other", "user-concurrent", "user-db-failure", "user-role-failure", "user-quarantine", "user-terminal-quarantine", "user-terminal-kick", "user-strong-reference", "user-passed-with-quarantine"]) {
   guild1.addMember(id);
 }
 guild2.addMember("user-test");
@@ -360,6 +362,23 @@ test("a terminal failed result quarantines and reports terminal true", async () 
   assert.equal(first.status, 200);
   assert.equal(first.json.terminal, true);
   assert.equal(metrics.quarantine, before + 1);
+});
+
+test("a terminal honeypot result executes the portal-selected kick action", async () => {
+  const before = metrics.kick;
+  const result = await post(body({
+    referenceId: "AX-ABCD1241",
+    userId: "user-terminal-kick",
+    passed: false,
+    botDetected: true,
+    honeypotTriggered: true,
+    honeypotAction: "kick",
+    attempts: 1,
+    locked: true,
+  }));
+  assert.equal(result.status, 200);
+  assert.equal(result.json.terminal, true);
+  assert.equal(metrics.kick, before + 1);
 });
 
 test("unauthenticated traffic cannot consume the authenticated guild rate limit", async () => {

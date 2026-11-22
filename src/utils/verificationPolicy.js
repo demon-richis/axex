@@ -59,7 +59,7 @@ function buildVerificationPolicy(config = {}) {
       newAccountAction === "block"
         ? "block"
         : newAccountAction === "strict"
-          ? "raise_level"
+          ? "review_flag"
           : "flag",
     vpnAction: config.vpn_check_enabled === false || config.vpnCheck === false ? "allow" : "block",
     honeypotAction:

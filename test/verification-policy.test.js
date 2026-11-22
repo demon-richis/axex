@@ -19,7 +19,7 @@ test("legacy guild settings map to the policy contract", () => {
     verifyTimeoutSeconds: 120,
     vpnAction: "allow",
     honeypotAction: "flag",
-    newAccountAction: "raise_level",
+    newAccountAction: "review_flag",
     raidAction: "force_review_new_accounts",
   });
 });
