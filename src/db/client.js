@@ -80,9 +80,9 @@ async function initDB() {
   }
 }
 
-async function checkVerificationPolicySchema() {
+async function checkVerificationPolicySchema(query = getSql(), logger = console) {
   try {
-    const rows = await getSql()`
+    const rows = await query`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_schema = current_schema()
@@ -96,14 +96,14 @@ async function checkVerificationPolicySchema() {
     const present = new Set(rows.map((row) => row.column_name));
     const missing = VERIFICATION_POLICY_COLUMNS.filter((column) => !present.has(column));
     if (missing.length > 0) {
-      console.warn(
+      logger.warn(
         `[Axex] Verification policy migration pending; using legacy defaults for missing columns: ${missing.join(", ")}`,
       );
       return false;
     }
     return true;
   } catch (_error) {
-    console.warn("[Axex] Could not inspect verification policy schema; using legacy defaults.");
+    logger.warn("[Axex] Could not inspect verification policy schema; using legacy defaults.");
     return false;
   }
 }

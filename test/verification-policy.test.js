@@ -60,6 +60,54 @@ test("persisted verification policy columns map to the policy contract", () => {
   });
 });
 
+test("full persisted policy columns override legacy settings with validated values", () => {
+  assert.deepEqual(buildVerificationPolicy({
+    cooldown_seconds: "180 / 10800",
+    cooldown_seconds_1: 30,
+    cooldown_seconds_2: 900,
+    vpn_action: "challenge",
+    honeypot_action: "ban",
+    new_account_days: 14,
+    new_account_action: "block",
+    raid_action: "stricter_attempts",
+    captcha_provider: "auto",
+    orbit_difficulty: "extreme",
+    vpn_check_enabled: true,
+    honeypot_enabled: true,
+    min_account_age: 7,
+    suspicious_action: "flag",
+  }), {
+    ...DEFAULT_VERIFICATION_POLICY,
+    cooldownsSeconds: [30, 900],
+    vpnAction: "challenge",
+    honeypotAction: "ban",
+    newAccountDays: 14,
+    newAccountAction: "block",
+    raidAction: "stricter_attempts",
+    captchaProvider: "auto",
+    orbitDifficulty: "extreme",
+  });
+});
+
+test("invalid or absent full policy columns preserve compatible defaults", () => {
+  assert.deepEqual(buildVerificationPolicy({
+    cooldown_seconds_1: null,
+    cooldown_seconds_2: null,
+    vpn_action: "invalid",
+    honeypot_action: "invalid",
+    new_account_days: null,
+    raid_action: "invalid",
+    captcha_provider: "invalid",
+    orbit_difficulty: "invalid",
+    min_account_age: 21,
+    cooldown_seconds: "60 / 3600",
+  }), {
+    ...DEFAULT_VERIFICATION_POLICY,
+    cooldownsSeconds: [60, 3600],
+    newAccountDays: 21,
+  });
+});
+
 test("policy bounds prevent unsafe legacy values", () => {
   const policy = buildVerificationPolicy({ min_account_age: 9999, verify_timeout: 1 });
   assert.equal(policy.newAccountDays, 365);
@@ -93,4 +141,17 @@ test("networkFailMode only ever sends values the portal accepts (closed | open_f
   assert.equal(buildVerificationPolicy({ network_fail_mode: "closed" }).networkFailMode, "closed");
   assert.equal(buildVerificationPolicy({ network_fail_mode: "weird" }).networkFailMode, "closed");
   assert.equal(buildVerificationPolicy({}).networkFailMode, "closed");
+});
+
+test("startup policy-schema check warns when a new migration column is missing", async () => {
+  const { checkVerificationPolicySchema } = require("../src/db/client");
+  const warnings = [];
+  const query = async () => [{ column_name: "max_attempts" }];
+  const ready = await checkVerificationPolicySchema(query, {
+    warn(message) { warnings.push(message); },
+  });
+  assert.equal(ready, false);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /cooldown_seconds_1/);
+  assert.match(warnings[0], /captcha_provider/);
 });

@@ -11,6 +11,8 @@ const DEFAULT_VERIFICATION_POLICY = Object.freeze({
   reviewTimeoutHours: 24,
   raidAction: "flag",
   autoVerifyEnabled: false,
+  captchaProvider: "turnstile",
+  orbitDifficulty: "high",
 });
 
 const VERIFICATION_POLICY_COLUMNS = Object.freeze([
@@ -32,6 +34,7 @@ const VERIFICATION_POLICY_COLUMNS = Object.freeze([
 ]);
 
 function boundedNumber(value, fallback, minimum, maximum) {
+  if (value === null || value === undefined || value === "") return fallback;
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number)
     ? Math.max(minimum, Math.min(maximum, number))
@@ -59,26 +62,67 @@ function buildVerificationPolicy(config = {}) {
   const reviewTimeoutHours = config.review_timeout_hours ?? config.reviewTimeoutHours;
   const networkFailMode = config.network_fail_mode ?? config.networkFailMode;
   const autoVerifyEnabled = config.auto_verify_enabled ?? config.autoVerifyEnabled;
+  const legacyCooldowns = parseCooldowns(cooldownSeconds);
+  const cooldownsSeconds = config.cooldown_seconds_1 != null && config.cooldown_seconds_2 != null
+    ? [
+        boundedNumber(config.cooldown_seconds_1, legacyCooldowns[0], 0, 86_400),
+        boundedNumber(config.cooldown_seconds_2, legacyCooldowns[1], 0, 86_400),
+      ]
+    : legacyCooldowns;
+  const storedVpnAction = config.vpn_action ?? config.vpnAction;
+  const storedHoneypotAction = config.honeypot_action ?? config.honeypotAction;
+  const storedNewAccountDays = config.new_account_days ?? config.newAccountDays;
+  const storedNewAccountAction = config.new_account_action_policy ?? config.newAccountActionPolicy ?? newAccountAction;
+  const storedRaidAction = config.raid_action ?? config.raidAction;
+  const storedCaptchaProvider = config.captcha_provider ?? config.captchaProvider;
+  const storedOrbitDifficulty = config.orbit_difficulty ?? config.orbitDifficulty;
+  const validVpnActions = ["allow", "flag", "challenge", "block"];
+  const validHoneypotActions = ["flag", "quarantine", "kick", "ban"];
+  const validRaidActions = ["flag", "force_review_new_accounts", "stricter_attempts"];
+  const validCaptchaProviders = ["turnstile", "orbit", "auto"];
+  const validOrbitDifficulties = ["medium", "high", "extreme"];
   return {
     ...DEFAULT_VERIFICATION_POLICY,
     maxAttempts: boundedNumber(maxAttempts, DEFAULT_VERIFICATION_POLICY.maxAttempts, 1, 10),
-    cooldownsSeconds: parseCooldowns(cooldownSeconds),
-    newAccountDays: boundedNumber(config.min_account_age, DEFAULT_VERIFICATION_POLICY.newAccountDays, 0, 365),
+    cooldownsSeconds,
+    newAccountDays: boundedNumber(
+      storedNewAccountDays ?? config.min_account_age,
+      DEFAULT_VERIFICATION_POLICY.newAccountDays,
+      0,
+      365,
+    ),
     newAccountAction:
-      newAccountAction === "block"
+      storedNewAccountAction === "block"
         ? "block"
-        : newAccountAction === "strict"
+        : ["strict", "review_flag"].includes(storedNewAccountAction)
           ? "review_flag"
           : "flag",
-    vpnAction: config.vpn_check_enabled === false || config.vpnCheck === false ? "allow" : "block",
-    honeypotAction:
-      config.honeypot_enabled === false || config.honeypot === false ? "flag" : "quarantine",
+    vpnAction: validVpnActions.includes(storedVpnAction)
+      ? storedVpnAction
+      : config.vpn_check_enabled === false || config.vpnCheck === false
+        ? "allow"
+        : DEFAULT_VERIFICATION_POLICY.vpnAction,
+    honeypotAction: validHoneypotActions.includes(storedHoneypotAction)
+      ? storedHoneypotAction
+      : config.honeypot_enabled === false || config.honeypot === false
+        ? "flag"
+        : DEFAULT_VERIFICATION_POLICY.honeypotAction,
     networkFailMode: networkFailMode === "open" || networkFailMode === "open_flag" ? "open_flag" : "closed",
     verifyTimeoutSeconds: boundedNumber(config.verify_timeout, DEFAULT_VERIFICATION_POLICY.verifyTimeoutSeconds, 15, 900),
     reviewEnabled: reviewEnabled === true,
     reviewTimeoutHours: boundedNumber(reviewTimeoutHours, DEFAULT_VERIFICATION_POLICY.reviewTimeoutHours, 1, 168),
-    raidAction: suspiciousAction === "quarantine" ? "force_review_new_accounts" : "flag",
+    raidAction: validRaidActions.includes(storedRaidAction)
+      ? storedRaidAction
+      : suspiciousAction === "quarantine"
+        ? "force_review_new_accounts"
+        : DEFAULT_VERIFICATION_POLICY.raidAction,
     autoVerifyEnabled: autoVerifyEnabled === true,
+    captchaProvider: validCaptchaProviders.includes(storedCaptchaProvider)
+      ? storedCaptchaProvider
+      : DEFAULT_VERIFICATION_POLICY.captchaProvider,
+    orbitDifficulty: validOrbitDifficulties.includes(storedOrbitDifficulty)
+      ? storedOrbitDifficulty
+      : DEFAULT_VERIFICATION_POLICY.orbitDifficulty,
   };
 }
 
