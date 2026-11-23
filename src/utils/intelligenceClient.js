@@ -1,5 +1,6 @@
 const INTEL_URL = process.env.INTELLIGENCE_URL;
 const INTEL_KEY = process.env.INTELLIGENCE_API_KEY;
+const { profileSignals } = require("./verificationSignals");
 
 async function analyzeUser(member, ip = null) {
   if (!INTEL_URL || !INTEL_KEY) {
@@ -7,11 +8,16 @@ async function analyzeUser(member, ip = null) {
     return null;
   }
   try {
+    const signals = profileSignals(member.user);
     const params = new URLSearchParams({
       username: member.user.username,
       avatar: member.user.avatar || '',
       createdTimestamp: member.user.createdTimestamp,
       guildId: member.guild.id,
+      ...(signals.avatarDecoration ? { decoration: "true" } : {}),
+      ...(signals.nitro ? { premiumType: "1" } : {}),
+      ...(signals.banner ? { banner: "true" } : {}),
+      ...(signals.bio ? { bio: "true" } : {}),
       ...(ip && { ip })
     });
     const res = await fetch(

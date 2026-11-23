@@ -12,6 +12,9 @@ const { runPreChecks } = require("../utils/memberChecks");
 const websiteUrl = require("../utils/websiteUrl");
 const { getPortalApiKey } = require("../config/runtime");
 const { buildVerificationPolicy } = require("../utils/verificationPolicy");
+const { buildVerificationSignals } = require("../utils/verificationSignals");
+const { analyzeUser } = require("../utils/intelligenceClient");
+const { getRecentJoinCount } = require("../utils/raidDetector");
 
 function accountAgeDays(member) {
   return Math.max(
@@ -221,6 +224,24 @@ async function handleVerifyStart(interaction, config, options = {}) {
     return;
   }
 
+  let intelligence = null;
+  try {
+    intelligence = await analyzeUser(member);
+  } catch (error) {
+    console.warn("[Verify] Optional intelligence analysis failed:", error.message);
+  }
+  const guildState = await getGuildState(member.guild.id).catch((error) => {
+    console.warn("[Verify] Could not load raid state:", error.message);
+    return null;
+  });
+  const verificationSignals = buildVerificationSignals({
+    member,
+    config,
+    state: guildState,
+    intelligence,
+    recentJoinCount: getRecentJoinCount(member.guild.id),
+  });
+
   // Reuse a pending portal token where possible, while keeping a durable bot-side case.
   let token = null;
   let referenceId = null;
@@ -327,6 +348,10 @@ async function handleVerifyStart(interaction, config, options = {}) {
             expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
             caseCode: reserved.case_code,
             policy: buildVerificationPolicy(config),
+            level: verificationSignals.level,
+            autoCandidate: verificationSignals.autoCandidate,
+            profileSignals: verificationSignals.profileSignals,
+            riskSignals: verificationSignals.riskSignals,
           }),
           signal: AbortSignal.timeout(timeoutMs),
         });
