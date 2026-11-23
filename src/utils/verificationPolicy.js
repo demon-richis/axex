@@ -16,10 +16,19 @@ const DEFAULT_VERIFICATION_POLICY = Object.freeze({
 const VERIFICATION_POLICY_COLUMNS = Object.freeze([
   "max_attempts",
   "cooldown_seconds",
+  "cooldown_seconds_1",
+  "cooldown_seconds_2",
   "review_enabled",
   "review_timeout_hours",
   "network_fail_mode",
   "auto_verify_enabled",
+  "vpn_action",
+  "honeypot_action",
+  "new_account_days",
+  "new_account_action",
+  "raid_action",
+  "captcha_provider",
+  "orbit_difficulty",
 ]);
 
 function boundedNumber(value, fallback, minimum, maximum) {

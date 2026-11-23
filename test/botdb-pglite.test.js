@@ -11,6 +11,7 @@ async function database() {
   await db.exec(fs.readFileSync("src/db/schema.sql", "utf8"));
   await db.exec(fs.readFileSync("src/db/migrations/20261112_bot_verification.sql", "utf8"));
   await db.exec(fs.readFileSync("src/db/migrations/20261121_verification_policy.sql", "utf8"));
+  await db.exec(fs.readFileSync("src/db/migrations/20261123_verification_policy_full.sql", "utf8"));
   return db;
 }
 async function close(db) { await db.close(); }
@@ -32,6 +33,35 @@ test("verification policy migration supplies current-behavior defaults and guard
   });
   await assert.rejects(() => db.query("UPDATE guild_config SET max_attempts=0 WHERE guild_id='policy-defaults'"));
   await assert.rejects(() => db.query("UPDATE guild_config SET network_fail_mode='ignore' WHERE guild_id='policy-defaults'"));
+  await close(db);
+});
+
+test("full policy migration backfills legacy guild settings and is safe to reapply", async () => {
+  const db = new PGlite();
+  await db.exec(fs.readFileSync("src/db/schema.sql", "utf8"));
+  await db.exec(fs.readFileSync("src/db/migrations/20261121_verification_policy.sql", "utf8"));
+  await db.query(
+    "INSERT INTO guild_config (guild_id, cooldown_seconds, min_account_age, vpn_check_enabled, honeypot_enabled, suspicious_action) VALUES ($1,$2,$3,$4,$5,$6)",
+    ["legacy-policy", "60 / 3600", 14, false, false, "quarantine"],
+  );
+  const migration = fs.readFileSync("src/db/migrations/20261123_verification_policy_full.sql", "utf8");
+  await db.exec(migration);
+  await db.exec(migration);
+  const config = (await db.query(
+    "SELECT cooldown_seconds_1, cooldown_seconds_2, vpn_action, honeypot_action, new_account_days, raid_action, captcha_provider, orbit_difficulty FROM guild_config WHERE guild_id=$1",
+    ["legacy-policy"],
+  )).rows[0];
+  assert.deepEqual(config, {
+    cooldown_seconds_1: 60,
+    cooldown_seconds_2: 3600,
+    vpn_action: "allow",
+    honeypot_action: "flag",
+    new_account_days: 14,
+    raid_action: "force_review_new_accounts",
+    captcha_provider: "turnstile",
+    orbit_difficulty: "high",
+  });
+  await assert.rejects(() => db.query("UPDATE guild_config SET captcha_provider='invalid' WHERE guild_id='legacy-policy'"));
   await close(db);
 });
 

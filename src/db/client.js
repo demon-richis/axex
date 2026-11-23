@@ -88,7 +88,10 @@ async function checkVerificationPolicySchema() {
       WHERE table_schema = current_schema()
         AND table_name = 'guild_config'
         AND column_name IN ('max_attempts', 'cooldown_seconds', 'review_enabled',
-          'review_timeout_hours', 'network_fail_mode', 'auto_verify_enabled')
+          'cooldown_seconds_1', 'cooldown_seconds_2', 'review_timeout_hours',
+          'network_fail_mode', 'auto_verify_enabled', 'vpn_action',
+          'honeypot_action', 'new_account_days', 'new_account_action',
+          'raid_action', 'captcha_provider', 'orbit_difficulty')
     `;
     const present = new Set(rows.map((row) => row.column_name));
     const missing = VERIFICATION_POLICY_COLUMNS.filter((column) => !present.has(column));
