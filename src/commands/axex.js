@@ -2,6 +2,7 @@ const { MessageFlags, PermissionFlagsBits } = require("discord.js");
 const { getGuildConfig } = require("../db/client");
 const { autoSetup, SetupError } = require("../setup/autoSetup");
 const embeds = require("../config/messages");
+const axexAdmin = require("./axexAdmin");
 
 async function repair(interaction) {
   if (!interaction.guild) {
@@ -70,6 +71,10 @@ async function repair(interaction) {
 }
 
 async function execute(interaction) {
+  if (interaction.options.getSubcommandGroup?.(false) === "admin") {
+    await axexAdmin.execute(interaction);
+    return;
+  }
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === "settings") {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });

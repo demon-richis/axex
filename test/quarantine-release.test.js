@@ -18,6 +18,7 @@ const state = {
   },
   resolved: [],
   events: [],
+  admins: new Set(["guild-1:moderator-1"]),
 };
 const dbPath = require.resolve("../src/db/client");
 require.cache[dbPath] = {
@@ -25,6 +26,12 @@ require.cache[dbPath] = {
   filename: dbPath,
   loaded: true,
   exports: {
+    isAxexAdminsSchemaReady() {
+      return true;
+    },
+    async hasAxexAdmin(guildId, userId) {
+      return state.admins.has(`${guildId}:${userId}`);
+    },
     async getGuildConfig() {
       return state.config;
     },
@@ -67,6 +74,7 @@ function makeInteraction() {
   const interaction = {
     guild: {
       id: "guild-1",
+      ownerId: "owner-1",
       members: { async fetch() { return member; } },
     },
     user: { id: "moderator-1", tag: "mod#0001" },
@@ -87,6 +95,7 @@ function makeInteraction() {
 function resetState() {
   state.resolved.length = 0;
   state.events.length = 0;
+  state.admins = new Set(["guild-1:moderator-1"]);
 }
 
 test("release calls the portal exactly once before swapping roles and resolves the case", async () => {
@@ -135,6 +144,20 @@ test("release aborts on portal failure without changing roles or resolving the c
   assert.deepEqual(state.resolved, []);
   assert.deepEqual(state.events, []);
   assert.match(edits.at(-1).content, /Release Failed/);
+});
+
+test("ManageGuild permission alone cannot manage quarantine cases", async () => {
+  resetState();
+  state.admins.clear();
+  const { interaction, edits } = makeInteraction();
+  let replies = 0;
+  interaction.reply = async () => { replies += 1; };
+
+  await execute(interaction);
+
+  assert.equal(replies, 1);
+  assert.deepEqual(edits, []);
+  assert.deepEqual(state.resolved, []);
 });
 
 test.after(() => {

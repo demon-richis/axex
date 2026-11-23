@@ -5,6 +5,7 @@ const { handleSetupButton, handleRoleSelect } = require("../commands/vsetup");
 const embeds = require("../config/messages");
 const logSelectHandler = require("./logSelectHandler");
 const { botVerificationStore } = require("../db/client");
+const { isAxexAdmin } = require("../utils/axexAdmin");
 
 async function execute(interaction) {
   if (interaction.isStringSelectMenu() && /^vlog:[1-9][0-9]{7}$/.test(interaction.customId)) {
@@ -25,7 +26,11 @@ async function execute(interaction) {
     try {
       const action = review[1];
       const caseCode = review[2];
-      const allowed = interaction.guild && (interaction.user.id === interaction.guild.ownerId || interaction.member?.permissions?.has?.("ManageGuild") || interaction.member?.permissions?.has?.("Administrator"));
+      const allowed = interaction.guild && await isAxexAdmin(
+        interaction.guild.id,
+        interaction.user.id,
+        interaction.guild.ownerId,
+      );
       if (!allowed) {
         await interaction.reply({ content: "Only the server owner or an Axex administrator may review this bot.", flags: MessageFlags.Ephemeral });
         return;
@@ -47,7 +52,8 @@ async function execute(interaction) {
         await botVerificationStore.markAction(row.id, "denied");
         await interaction.editReply("Bot denied and removed from the server.");
       }
-    } catch {
+    } catch (error) {
+      console.error("[Bot Verification] Admin action failed:", error instanceof Error ? error.message : "unknown error");
       if (interaction.deferred || interaction.replied) await interaction.editReply("This bot-verification action could not be completed.").catch(() => {});
       else await interaction.reply({ content: "This bot-verification action could not be completed.", flags: MessageFlags.Ephemeral }).catch(() => {});
     }

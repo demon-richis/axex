@@ -1,4 +1,4 @@
-const { MessageFlags, PermissionFlagsBits } = require("discord.js");
+const { MessageFlags } = require("discord.js");
 const {
   getGuildConfig,
   getQuarantineCase,
@@ -9,6 +9,7 @@ const {
 const messages = require("../config/messages");
 const { getPortalApiKey } = require("../config/runtime");
 const websiteUrl = require("../utils/websiteUrl");
+const { isAxexAdmin } = require("../utils/axexAdmin");
 
 async function execute(interaction) {
   if (!interaction.guild) {
@@ -18,9 +19,24 @@ async function execute(interaction) {
     });
     return;
   }
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  let allowed;
+  try {
+    allowed = await isAxexAdmin(
+      interaction.guild.id,
+      interaction.user.id,
+      interaction.guild.ownerId,
+    );
+  } catch (error) {
+    console.error("[Quarantine] Admin check failed:", error instanceof Error ? error.message : "unknown error");
     await interaction.reply({
-      content: messages.system.manageServerRequired(),
+      content: "Axex administrator check is unavailable. Try again later.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  if (!allowed) {
+    await interaction.reply({
+      content: "Only the server owner or an Axex administrator can manage quarantines.",
       flags: MessageFlags.Ephemeral,
     });
     return;

@@ -103,6 +103,54 @@ function isAxexAdminsSchemaReady() {
   return axexAdminsSchemaReady;
 }
 
+function requireAxexAdminsSchema() {
+  if (!axexAdminsSchemaReady) {
+    const error = new Error("Axex administrator migration is not applied");
+    error.code = "AXEX_ADMIN_SCHEMA_NOT_READY";
+    throw error;
+  }
+}
+
+async function hasAxexAdmin(guildId, userId) {
+  if (!axexAdminsSchemaReady) return false;
+  const rows = await getSql()`
+    SELECT 1 FROM axex_admins WHERE guild_id = ${guildId} AND user_id = ${userId}
+    LIMIT 1
+  `;
+  return Boolean(rows[0]);
+}
+
+async function listAxexAdmins(guildId) {
+  requireAxexAdminsSchema();
+  return getSql()`
+    SELECT guild_id, user_id, added_by, created_at
+    FROM axex_admins
+    WHERE guild_id = ${guildId}
+    ORDER BY created_at ASC, user_id ASC
+  `;
+}
+
+async function addAxexAdmin(guildId, userId, addedBy) {
+  requireAxexAdminsSchema();
+  const rows = await getSql()`
+    INSERT INTO axex_admins (guild_id, user_id, added_by)
+    VALUES (${guildId}, ${userId}, ${addedBy})
+    ON CONFLICT (guild_id, user_id) DO NOTHING
+    RETURNING user_id
+  `;
+  return Boolean(rows[0]);
+}
+
+async function removeAxexAdmin(guildId, userId) {
+  requireAxexAdminsSchema();
+  const rows = await getSql()`
+    DELETE FROM axex_admins
+    WHERE guild_id = ${guildId} AND user_id = ${userId}
+    RETURNING user_id
+  `;
+  return Boolean(rows[0]);
+}
+
 async function checkVerificationPolicySchema(query = getSql(), logger = console) {
   try {
     const rows = await query`
@@ -524,6 +572,10 @@ module.exports = {
   checkVerificationPolicySchema,
   checkAxexAdminsSchema,
   isAxexAdminsSchemaReady,
+  hasAxexAdmin,
+  listAxexAdmins,
+  addAxexAdmin,
+  removeAxexAdmin,
   caseStore,
   getGuildConfig,
   saveGuildConfig,

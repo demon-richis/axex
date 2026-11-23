@@ -126,7 +126,6 @@ const commands = [
   {
     name: "quarantine",
     description: "Manage quarantined members and cases",
-    default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
     dm_permission: false,
     options: [
       { name: "list", type: 1, description: "List active quarantine cases" },
@@ -174,6 +173,44 @@ const commands = [
         type: 1,
         description:
           "Repair missing Axex roles, channels, permissions, and panel",
+      },
+      {
+        name: "admin",
+        type: 2,
+        description: "Manage server-scoped Axex administrators (owner only)",
+        options: [
+          {
+            name: "add",
+            type: 1,
+            description: "Add an Axex administrator",
+            options: [
+              {
+                name: "user",
+                type: 6,
+                description: "User to add",
+                required: true,
+              },
+            ],
+          },
+          {
+            name: "remove",
+            type: 1,
+            description: "Remove an Axex administrator",
+            options: [
+              {
+                name: "user",
+                type: 6,
+                description: "User to remove",
+                required: true,
+              },
+            ],
+          },
+          {
+            name: "list",
+            type: 1,
+            description: "List Axex administrators",
+          },
+        ],
       },
     ],
   },
