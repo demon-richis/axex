@@ -10,6 +10,7 @@ const { createBotVerificationStore } = require("./botVerificationStore");
 const { VERIFICATION_POLICY_COLUMNS } = require("../utils/verificationPolicy");
 
 let sql = null;
+let axexAdminsSchemaReady = false;
 const guildConfigCache = new Map();
 const GUILD_CONFIG_CACHE_MS = 30_000;
 
@@ -72,12 +73,34 @@ async function initDB() {
       .filter(Boolean);
     for (const statement of statements) await getSql()(statement);
     await checkVerificationPolicySchema();
+    await checkAxexAdminsSchema();
     console.log("NeonDB connected and schema initialized");
     return true;
   } catch (error) {
     console.error("Could not initialize NeonDB schema:", error.message);
     return false;
   }
+}
+
+async function checkAxexAdminsSchema(query = getSql(), logger = console) {
+  try {
+    const rows = await query`
+      SELECT to_regclass('public.axex_admins') AS table_name
+    `;
+    axexAdminsSchemaReady = Boolean(rows[0]?.table_name);
+    if (!axexAdminsSchemaReady) {
+      logger.warn("[Axex] Migration 20261123_axex_admins.sql is pending; Axex administrator controls are disabled.");
+    }
+    return axexAdminsSchemaReady;
+  } catch (_error) {
+    axexAdminsSchemaReady = false;
+    logger.warn("[Axex] Could not inspect the Axex administrator schema; administrator controls are disabled.");
+    return false;
+  }
+}
+
+function isAxexAdminsSchemaReady() {
+  return axexAdminsSchemaReady;
 }
 
 async function checkVerificationPolicySchema(query = getSql(), logger = console) {
@@ -499,6 +522,8 @@ module.exports = {
   getSql,
   initDB,
   checkVerificationPolicySchema,
+  checkAxexAdminsSchema,
+  isAxexAdminsSchemaReady,
   caseStore,
   getGuildConfig,
   saveGuildConfig,

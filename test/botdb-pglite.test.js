@@ -12,6 +12,7 @@ async function database() {
   await db.exec(fs.readFileSync("src/db/migrations/20261112_bot_verification.sql", "utf8"));
   await db.exec(fs.readFileSync("src/db/migrations/20261121_verification_policy.sql", "utf8"));
   await db.exec(fs.readFileSync("src/db/migrations/20261123_verification_policy_full.sql", "utf8"));
+  await db.exec(fs.readFileSync("src/db/migrations/20261123_axex_admins.sql", "utf8"));
   return db;
 }
 async function close(db) { await db.close(); }
@@ -62,6 +63,28 @@ test("full policy migration backfills legacy guild settings and is safe to reapp
     orbit_difficulty: "high",
   });
   await assert.rejects(() => db.query("UPDATE guild_config SET captcha_provider='invalid' WHERE guild_id='legacy-policy'"));
+  await close(db);
+});
+
+test("Axex admin migration creates a guild-scoped, idempotent administrator table", async () => {
+  const db = await database();
+  const migration = fs.readFileSync("src/db/migrations/20261123_axex_admins.sql", "utf8");
+  await db.exec(migration);
+  await db.query(
+    "INSERT INTO axex_admins (guild_id, user_id, added_by) VALUES ($1,$2,$3)",
+    ["guild-test", "123456789012345678", "123456789012345679"],
+  );
+  assert.deepEqual((await db.query(
+    "SELECT guild_id, user_id, added_by FROM axex_admins",
+  )).rows, [{
+    guild_id: "guild-test",
+    user_id: "123456789012345678",
+    added_by: "123456789012345679",
+  }]);
+  await assert.rejects(() => db.query(
+    "INSERT INTO axex_admins (guild_id, user_id, added_by) VALUES ($1,$2,$3)",
+    ["guild-test", "123456789012345678", "different-admin"],
+  ));
   await close(db);
 });
 
