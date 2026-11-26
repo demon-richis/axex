@@ -76,7 +76,7 @@ LG2 | commit ec68465 | axex-guardian-portal | legal/PRIVACY_POLICY.md, legal/TER
 LG3 | commit 928923e | axex-guardian-portal | src/routes/terms.tsx, src/routes/privacy.tsx, src/lib/legal-markdown.tsx, src/routes/verify.tsx, public/manus-routes.json, src/routeTree.gen.tsx | portal 104/104, check, build passed | safe legal routes and verification footer links added
 LG4 | commits 71d6ed0 (portal), d79f433 (bot), 226c977 (intelligence), 9ae7229 (Orbit) | all four repos | LICENSE, package.json, package-lock.json, README.md | production license audits recorded below; no GPL/AGPL/SSPL/unknown production licenses | license metadata and repository license notices added
 LG5 | commits 3a60684 (portal), ac3e057 (bot), c2856ac (intelligence), a290a27 (Orbit) | all four repos | SECURITY.md, LEGAL.md, axex/HANDOVER.md | all required validation suites passed | security reporting and legal pointers added
-LG6 | pending final report commit | axex | AXEX_FIX_REPORT.md | all four repositories validated; historical hash corrections recorded | corrected historical hashes and legal report sections added
+LG6 | commit 47792c2 | axex | AXEX_FIX_REPORT.md | all four repositories validated; historical hash corrections recorded | corrected historical hashes and legal report sections added
 
 ## Production dependency license audit
 
