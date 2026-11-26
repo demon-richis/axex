@@ -39,7 +39,7 @@ Q1b | commit 5130b1a | demon-richis/axex-guardian-portal | src/lib/discord-ident
 L2 | commit 1dc9fd9d48122296fbd2f24d7578d3a526e6e025 | demon-richis/axex-account-intelligence | src/analyzers/profileAnalyzer.js, test/core.test.js | intelligence 24/24, npm run check | result: profile richness capped at 10 risk points and decoration-only autoCandidate; passed
 L3 | commit d2fd86c | demon-richis/axex-account-intelligence | src/analyzers/behaviorTracker.js | intelligence 24/24, npm run check | result: fixed behavior average floating-point representation; passed
 S1 | commit 5130b1a | all four repos | package manifests/locks and dependency files | production npm audit, secret scans | result: bot/intelligence/Orbit 0 production findings; portal residual nested Zod advisories require follow-up, exact pins recorded
-R1 | commit 8353739 | demon-richis/axex | AXEX_FIX_REPORT.md, HANDOVER.md | final four-repo validation | result: handover report and operating guide prepared
+R1 | commit 107db5c | demon-richis/axex | AXEX_FIX_REPORT.md, HANDOVER.md | final four-repo validation | result: handover report and operating guide prepared
 
 ## Baseline P0
 
