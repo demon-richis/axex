@@ -13,6 +13,8 @@ const DEFAULT_VERIFICATION_POLICY = Object.freeze({
   autoVerifyEnabled: false,
   captchaProvider: "turnstile",
   orbitDifficulty: "high",
+  memberTimeoutMinutes: 0,
+  timeoutReminderMinutes: 30,
 });
 
 const VERIFICATION_POLICY_COLUMNS = Object.freeze([
@@ -31,6 +33,8 @@ const VERIFICATION_POLICY_COLUMNS = Object.freeze([
   "raid_action",
   "captcha_provider",
   "orbit_difficulty",
+  "verification_timeout_minutes",
+  "verification_reminder_minutes",
 ]);
 
 function boundedNumber(value, fallback, minimum, maximum) {
@@ -76,6 +80,21 @@ function buildVerificationPolicy(config = {}) {
   const storedRaidAction = config.raid_action ?? config.raidAction;
   const storedCaptchaProvider = config.captcha_provider ?? config.captchaProvider;
   const storedOrbitDifficulty = config.orbit_difficulty ?? config.orbitDifficulty;
+  const memberTimeoutMinutes = config.verification_timeout_minutes ?? config.memberTimeoutMinutes;
+  const timeoutReminderMinutes = config.verification_reminder_minutes ?? config.timeoutReminderMinutes;
+  const boundedMemberTimeout = boundedNumber(
+    memberTimeoutMinutes,
+    DEFAULT_VERIFICATION_POLICY.memberTimeoutMinutes,
+    0,
+    10_080,
+  );
+  const boundedTimeoutReminder = boundedNumber(
+    timeoutReminderMinutes,
+    DEFAULT_VERIFICATION_POLICY.timeoutReminderMinutes,
+    1,
+    10_079,
+  );
+  const effectiveMemberTimeout = boundedMemberTimeout === 1 ? 0 : boundedMemberTimeout;
   const validVpnActions = ["allow", "flag", "challenge", "block"];
   const validHoneypotActions = ["flag", "quarantine", "kick", "ban"];
   const validRaidActions = ["flag", "force_review_new_accounts", "stricter_attempts"];
@@ -123,6 +142,10 @@ function buildVerificationPolicy(config = {}) {
     orbitDifficulty: validOrbitDifficulties.includes(storedOrbitDifficulty)
       ? storedOrbitDifficulty
       : DEFAULT_VERIFICATION_POLICY.orbitDifficulty,
+    memberTimeoutMinutes: effectiveMemberTimeout,
+    timeoutReminderMinutes: effectiveMemberTimeout > 0
+      ? Math.min(boundedTimeoutReminder, effectiveMemberTimeout - 1)
+      : boundedTimeoutReminder,
   };
 }
 

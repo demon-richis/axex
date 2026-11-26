@@ -14,6 +14,7 @@ const FINAL_LOG_TYPES = new Set([
   "botDetected",
   "vpnDetected",
   "locked",
+  "reviewResolved",
 ]);
 
 function pruneCaseStore(store, now = Date.now()) {
@@ -51,6 +52,7 @@ function isSupported(data) {
     data?.logType === "roleUpdateFailed" ||
     data?.logType === "unverifiedRoleFailed" ||
     data?.logType === "expired" ||
+    data?.logType === "reviewPending" ||
     isFinal(data)
   );
 }
@@ -65,6 +67,10 @@ function caseKey(guild, data) {
 
 function statusFrom(data, currentStatus) {
   if (data?.logType === "expired") return "expired";
+  if (data?.logType === "reviewPending") return "pending_review";
+  if (data?.logType === "reviewResolved") {
+    return data.review?.action === "approve" ? "verified" : "quarantined";
+  }
   if (!isFinal(data)) return currentStatus || "in_progress";
   const action = String(data?.action || "").toUpperCase();
   if (data.logType === "verified" || action.includes("VERIFIED")) return "verified";
@@ -139,7 +145,11 @@ function mergeSummary(existing, data, row) {
     expired: Boolean(existing?.expired),
     errors: Array.isArray(existing?.errors) ? [...existing.errors] : [],
     flags: { ...(existing?.flags || {}) },
+    review: { ...(existing?.review || {}), ...(data.review || {}) },
   };
+  if (data.logType === "reviewPending" && !summary.review.startedAt) {
+    summary.review.startedAt = new Date().toISOString();
+  }
 
   if (data.logType === "intelligenceAnalysis") {
     const result = data.result || {};
@@ -218,6 +228,7 @@ function toLogState(row, summary) {
     flags: summary.flags || {},
     expired: summary.expired || row.status === "expired",
     status: row.status,
+    review: summary.review,
     summary,
   };
 }

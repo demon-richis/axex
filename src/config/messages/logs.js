@@ -1,6 +1,8 @@
 const {
   ActionRowBuilder,
   EmbedBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   StringSelectMenuBuilder,
 } = require("discord.js");
 const E = require("../../verification/emojis");
@@ -37,6 +39,7 @@ function statusFor(state) {
   const final = state?.final || {};
   const action = String(final.action || "").toUpperCase();
   if (state?.expired || state?.status === "expired") return "EXPIRED";
+  if (["pending_review", "review_processing"].includes(state?.status)) return "REVIEW";
   if (state?.status === "verified" || final.logType === "verified" || action === "VERIFIED") return "SUCCESS";
   if (state?.status === "quarantined" || final.logType === "vpnDetected" ||
       final.logType === "locked" || action.includes("QUARANTIN") || action.includes("BLOCKED")) return "QUARANTINED";
@@ -50,20 +53,22 @@ const STATUS_TITLES = {
   FAILED: "Verification Failed",
   QUARANTINED: "User Quarantined",
   EXPIRED: "Verification Expired",
+  REVIEW: "Verification Under Review",
   "IN PROGRESS": "Verification In Progress",
 };
 
 function statusColor(status) {
   return status === "SUCCESS" ? 0x57f287
     : status === "QUARANTINED" || status === "FAILED" ? 0xef4444
-      : status === "EXPIRED" ? 0xf59e0b : 0x5865f2;
+      : status === "EXPIRED" || status === "REVIEW" ? 0xf59e0b : 0x5865f2;
 }
 
 function statusEmoji(status) {
   return status === "SUCCESS" ? E.success
     : status === "QUARANTINED" ? E.quarantine
       : status === "FAILED" ? E.failed
-        : status === "EXPIRED" ? E.timeout : E.loading;
+        : status === "EXPIRED" ? E.timeout
+          : status === "REVIEW" ? E.warning : E.loading;
 }
 
 function formatDuration(value) {
@@ -112,10 +117,20 @@ function verificationCase(state = {}) {
   if ((status === "FAILED" || status === "QUARANTINED") && reason) {
     lines.push(E.invisible + " " + E.warning + " **Reason:** " + chip(reason, 90));
   }
+  const review = state?.review || state?.summary?.review;
+  if (review?.actorId) {
+    lines.push(
+      E.invisible + " " + E.protected + " **Review:** " +
+        chip(String(review.action || "resolved").toUpperCase(), 20) +
+        " by <@" + safe(review.actorId, "unknown", 30) + ">",
+    );
+  }
 
   const hint = status === "EXPIRED"
     ? "Link expired. The user can press **Verify** again."
-    : status === "IN PROGRESS"
+    : status === "REVIEW"
+      ? "An Axex administrator must decide this case."
+      : status === "IN PROGRESS"
       ? "Waiting for the user to finish verification."
       : hasMenu
         ? "Pick a log from the menu below."
@@ -157,7 +172,7 @@ function verificationCaseComponents(state = {}, { disabled = false } = {}) {
     options.push({ label: "Errors", value: "errors", description: "Processing and role errors" });
   }
   if (!options.length) return [];
-  return [
+  const rows = [
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId("vlog:" + code)
@@ -166,6 +181,34 @@ function verificationCaseComponents(state = {}, { disabled = false } = {}) {
         .addOptions(options),
     ),
   ];
+  const review = summary.review || state.review;
+  if (
+    state.status === "pending_review" ||
+    state.status === "review_processing" ||
+    review?.action
+  ) {
+    const buttonsDisabled = state.status !== "pending_review";
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("axex_review:approve:" + code)
+          .setLabel("Approve")
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(buttonsDisabled),
+        new ButtonBuilder()
+          .setCustomId("axex_review:deny:" + code)
+          .setLabel("Deny")
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(buttonsDisabled),
+        new ButtonBuilder()
+          .setCustomId("axex_review:ban:" + code)
+          .setLabel("Ban")
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(buttonsDisabled),
+      ),
+    );
+  }
+  return rows;
 }
 
 const SECTION_META = {

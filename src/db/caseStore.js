@@ -1,10 +1,13 @@
 const { generateCaseCode, isCaseCode } = require("../utils/caseCode");
 
 const MAX_ATTEMPTS = 8;
-const FINAL_STATUSES = new Set(["verified", "failed", "quarantined"]);
+const FINAL_STATUSES = new Set(["verified", "failed", "quarantined", "timed_out"]);
 const VALID_STATUSES = new Set([
   "in_progress",
   "expired",
+  "pending_review",
+  "review_processing",
+  "verification_timeout_processing",
   ...FINAL_STATUSES,
 ]);
 
@@ -78,9 +81,20 @@ function createCaseStore(getSql, { generate = generateCaseCode } = {}) {
       throw new Error("Could not allocate a unique case code");
     },
 
-    async attachToken(id, { referenceId, tokenExpiresAt, caseCode = null }) {
+    async attachToken(id, {
+      referenceId,
+      tokenExpiresAt,
+      caseCode = null,
+      memberTimeout = null,
+    }) {
       const sql = getSql();
       const reference = cleanReference(referenceId);
+      const timeoutSummary = memberTimeout
+        ? JSON.stringify({
+            timeoutMinutes: memberTimeout.timeoutMinutes,
+            reminderMinutes: memberTimeout.reminderMinutes,
+          })
+        : null;
       let rows;
       try {
         rows = await sql`
@@ -88,6 +102,21 @@ function createCaseStore(getSql, { generate = generateCaseCode } = {}) {
           SET reference_id = ${reference},
               token_expires_at = ${tokenExpiresAt ?? null},
               case_code = CASE WHEN ${isCaseCode(caseCode)} THEN ${caseCode} ELSE case_code END,
+              summary = CASE
+                WHEN ${timeoutSummary}::text IS NULL THEN summary
+                ELSE jsonb_set(
+                  COALESCE(summary, '{}'::jsonb),
+                  '{memberTimeout}',
+                  COALESCE(summary->'memberTimeout', '{}'::jsonb) ||
+                    ${timeoutSummary}::jsonb ||
+                    CASE
+                      WHEN summary->'memberTimeout'->'reminderState' IS NULL
+                        THEN '{"reminderState":"pending"}'::jsonb
+                      ELSE '{}'::jsonb
+                    END,
+                  true
+                )
+              END,
               updated_at = NOW()
           WHERE id = ${id}
           RETURNING *
@@ -99,6 +128,21 @@ function createCaseStore(getSql, { generate = generateCaseCode } = {}) {
           UPDATE verification_cases
           SET reference_id = ${reference},
               token_expires_at = ${tokenExpiresAt ?? null},
+              summary = CASE
+                WHEN ${timeoutSummary}::text IS NULL THEN summary
+                ELSE jsonb_set(
+                  COALESCE(summary, '{}'::jsonb),
+                  '{memberTimeout}',
+                  COALESCE(summary->'memberTimeout', '{}'::jsonb) ||
+                    ${timeoutSummary}::jsonb ||
+                    CASE
+                      WHEN summary->'memberTimeout'->'reminderState' IS NULL
+                        THEN '{"reminderState":"pending"}'::jsonb
+                      ELSE '{}'::jsonb
+                    END,
+                  true
+                )
+              END,
               updated_at = NOW()
           WHERE id = ${id}
           RETURNING *
@@ -160,7 +204,7 @@ function createCaseStore(getSql, { generate = generateCaseCode } = {}) {
         UPDATE verification_cases
         SET status = CASE
               WHEN ${nextStatus}::text IS NULL THEN status
-              WHEN status IN ('in_progress', 'expired') THEN ${nextStatus}::text
+              WHEN status IN ('in_progress', 'expired', 'pending_review', 'review_processing', 'verification_timeout_processing') THEN ${nextStatus}::text
               ELSE status
             END,
             summary = CASE
@@ -206,6 +250,226 @@ function createCaseStore(getSql, { generate = generateCaseCode } = {}) {
         SET summary = jsonb_set(summary, '{menuDisabled}', 'true'::jsonb, true),
             updated_at = NOW()
         WHERE id = ${id}
+        RETURNING *
+      `;
+      return rows[0] || null;
+    },
+
+    async claimReviewAction({ guildId, caseCode, action, actorId }) {
+      const rows = await getSql()`
+        UPDATE verification_cases
+        SET status = 'review_processing',
+            summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{review}',
+              COALESCE(summary->'review', '{}'::jsonb) ||
+                jsonb_build_object(
+                  'action', ${action},
+                  'actorId', ${actorId},
+                  'claimedAt', NOW()
+                ),
+              true
+            ),
+            updated_at = NOW()
+        WHERE guild_id = ${guildId}
+          AND case_code = ${caseCode}
+          AND status = 'pending_review'
+        RETURNING *
+      `;
+      return rows[0] || null;
+    },
+
+    async claimReviewTimeouts({ limit = 25 } = {}) {
+      const max = Math.min(100, Math.max(1, Math.floor(Number(limit) || 25)));
+      return getSql()`
+        UPDATE verification_cases
+        SET status = 'review_processing',
+            summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{review}',
+              COALESCE(summary->'review', '{}'::jsonb) ||
+                jsonb_build_object(
+                  'action', 'timeout',
+                  'actorId', 'system_timeout',
+                  'claimedAt', NOW()
+                ),
+              true
+            ),
+            updated_at = NOW()
+        WHERE id IN (
+          SELECT id FROM verification_cases
+          WHERE status = 'pending_review'
+            AND COALESCE(
+              NULLIF(summary->'review'->>'startedAt', '')::timestamptz,
+              created_at
+            ) <= NOW() - make_interval(
+              hours => COALESCE(NULLIF(summary->'review'->>'timeoutHours', '')::int, 24)
+            )
+          ORDER BY created_at ASC
+          LIMIT ${max}
+          FOR UPDATE SKIP LOCKED
+        )
+        AND status = 'pending_review'
+        RETURNING *
+      `;
+    },
+
+    async finishReviewAction({ id, action, actorId, status }) {
+      if (!FINAL_STATUSES.has(status)) throw new Error("Invalid final review status");
+      const rows = await getSql()`
+        UPDATE verification_cases
+        SET status = ${status},
+            summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{review}',
+              COALESCE(summary->'review', '{}'::jsonb) ||
+                jsonb_build_object(
+                  'action', ${action},
+                  'actorId', ${actorId},
+                  'resolvedAt', NOW()
+                ),
+              true
+            ),
+            updated_at = NOW()
+        WHERE id = ${id}
+          AND status = 'review_processing'
+          AND summary->'review'->>'action' = ${action}
+        RETURNING *
+      `;
+      return rows[0] || null;
+    },
+
+    async releaseReviewAction(id, action, error) {
+      const rows = await getSql()`
+        UPDATE verification_cases
+        SET status = 'pending_review',
+            summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{review}',
+              COALESCE(summary->'review', '{}'::jsonb) ||
+                jsonb_build_object('action', NULL, 'lastError', ${String(error || "").slice(0, 300)}),
+              true
+            ),
+            updated_at = NOW()
+        WHERE id = ${id}
+          AND status = 'review_processing'
+          AND summary->'review'->>'action' = ${action}
+        RETURNING *
+      `;
+      return rows[0] || null;
+    },
+
+    async claimVerificationReminders({ limit = 25 } = {}) {
+      const max = Math.min(100, Math.max(1, Math.floor(Number(limit) || 25)));
+      return getSql()`
+        UPDATE verification_cases
+        SET summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{memberTimeout,reminderState}',
+              '"sending"'::jsonb,
+              true
+            ),
+            updated_at = NOW()
+        WHERE id IN (
+          SELECT id FROM verification_cases
+          WHERE status = 'in_progress'
+            AND COALESCE(NULLIF(summary->'memberTimeout'->>'timeoutMinutes', '')::int, 0) > 0
+            AND (
+              COALESCE(summary->'memberTimeout'->>'reminderState', 'pending') = 'pending'
+              OR (
+                summary->'memberTimeout'->>'reminderState' = 'sending'
+                AND updated_at < NOW() - INTERVAL '5 minutes'
+              )
+            )
+            AND created_at + make_interval(
+              mins => NULLIF(summary->'memberTimeout'->>'reminderMinutes', '')::int
+            ) <= NOW()
+          ORDER BY created_at ASC
+          LIMIT ${max}
+          FOR UPDATE SKIP LOCKED
+        )
+        AND status = 'in_progress'
+        RETURNING *
+      `;
+    },
+
+    async finishVerificationReminder(id, sent) {
+      const rows = await getSql()`
+        UPDATE verification_cases
+        SET summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{memberTimeout,reminderState}',
+              to_jsonb(${sent ? "sent" : "pending"}::text),
+              true
+            ),
+            updated_at = NOW()
+        WHERE id = ${id}
+          AND status = 'in_progress'
+          AND summary->'memberTimeout'->>'reminderState' = 'sending'
+        RETURNING *
+      `;
+      return rows[0] || null;
+    },
+
+    async claimMemberVerificationTimeouts({ limit = 25 } = {}) {
+      const max = Math.min(100, Math.max(1, Math.floor(Number(limit) || 25)));
+      return getSql()`
+        UPDATE verification_cases
+        SET status = 'verification_timeout_processing',
+            summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{memberTimeout,action}',
+              '"kick"'::jsonb,
+              true
+            ),
+            updated_at = NOW()
+        WHERE id IN (
+          SELECT id FROM verification_cases
+          WHERE status = 'in_progress'
+            AND COALESCE(NULLIF(summary->'memberTimeout'->>'timeoutMinutes', '')::int, 0) > 0
+            AND created_at + make_interval(
+              mins => NULLIF(summary->'memberTimeout'->>'timeoutMinutes', '')::int
+            ) <= NOW()
+          ORDER BY created_at ASC
+          LIMIT ${max}
+          FOR UPDATE SKIP LOCKED
+        )
+        AND status = 'in_progress'
+        RETURNING *
+      `;
+    },
+
+    async finishMemberVerificationTimeout(id) {
+      const rows = await getSql()`
+        UPDATE verification_cases
+        SET status = 'timed_out',
+            summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{memberTimeout,action}',
+              '"kicked"'::jsonb,
+              true
+            ),
+            updated_at = NOW()
+        WHERE id = ${id}
+          AND status = 'verification_timeout_processing'
+        RETURNING *
+      `;
+      return rows[0] || null;
+    },
+
+    async releaseMemberVerificationTimeout(id, error) {
+      const rows = await getSql()`
+        UPDATE verification_cases
+        SET status = 'in_progress',
+            summary = jsonb_set(
+              COALESCE(summary, '{}'::jsonb),
+              '{memberTimeout,lastError}',
+              to_jsonb(${String(error || "").slice(0, 300)}::text),
+              true
+            ),
+            updated_at = NOW()
+        WHERE id = ${id}
+          AND status = 'verification_timeout_processing'
         RETURNING *
       `;
       return rows[0] || null;

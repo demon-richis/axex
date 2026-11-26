@@ -1,11 +1,12 @@
 const { MessageFlags } = require("discord.js");
-const { getGuildConfig } = require("../db/client");
+const { getGuildConfig, caseStore, logVerificationEvent } = require("../db/client");
 const { handleVerifyStart } = require("../verification/verifySystem");
 const { handleSetupButton, handleRoleSelect } = require("../commands/vsetup");
 const embeds = require("../config/messages");
 const logSelectHandler = require("./logSelectHandler");
 const { botVerificationStore } = require("../db/client");
 const { isAxexAdmin } = require("../utils/axexAdmin");
+const { sendLiveUpdate } = require("../utils/liveUpdate");
 
 async function execute(interaction) {
   if (interaction.isStringSelectMenu() && /^vlog:[1-9][0-9]{7}$/.test(interaction.customId)) {
@@ -18,6 +19,95 @@ async function execute(interaction) {
     interaction.customId.startsWith("axex_setup_roles_")
   ) {
     await handleRoleSelect(interaction);
+    return;
+  }
+
+  const manualReview = /^axex_review:(approve|deny|ban):([1-9][0-9]{7})$/.exec(
+    interaction.customId || "",
+  );
+  if (interaction.isButton() && manualReview) {
+    try {
+      const allowed = interaction.guild && await isAxexAdmin(
+        interaction.guild.id,
+        interaction.user.id,
+        interaction.guild.ownerId,
+      );
+      if (!allowed) {
+        await interaction.reply({
+          content: "Only the server owner or an Axex administrator may review this case.",
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const action = manualReview[1];
+      const caseCode = manualReview[2];
+      const row = await caseStore.getByCode(interaction.guild.id, caseCode);
+      if (!row || row.status !== "pending_review") {
+        await interaction.editReply("This review case is stale or already resolved.");
+        return;
+      }
+      const member = await interaction.guild.members.fetch(row.user_id).catch(() => null);
+      const config = await getGuildConfig(interaction.guild.id);
+      if (!member || !config?.setup_done) {
+        await interaction.editReply("The member or verification roles are unavailable.");
+        return;
+      }
+      const { createReviewWorkflow, updatePortalReview } = require("../utils/reviewWorkflow");
+      const { quarantineUser } = require("../verification/verifySystem");
+      const { flagAccount } = require("../utils/intelligenceClient");
+      const workflow = createReviewWorkflow({
+        caseStore,
+        quarantineMember: quarantineUser,
+        approveMember: async (target, guildConfig) => {
+          if (!guildConfig.verified_role_id || !guildConfig.unverified_role_id) {
+            throw new Error("Verification roles are not configured");
+          }
+          const remove = [guildConfig.unverified_role_id, guildConfig.quarantined_role_id]
+            .filter(Boolean);
+          if (remove.length) await target.roles.remove(remove, "Axex manual review approval");
+          await target.roles.add(guildConfig.verified_role_id, "Axex manual review approval");
+        },
+        banMember: (target, reason) => target.ban({ reason }),
+        updatePortal: updatePortalReview,
+        flagAccount,
+        sendLiveUpdate: (guild, data) => sendLiveUpdate(guild, data),
+        logAction: (data) => logVerificationEvent({
+          ...data,
+          username: member.user.tag,
+          accountAge: require("../verification/verifySystem").accountAgeDays(member),
+        }),
+      });
+      const result = await workflow.apply({
+        guild: interaction.guild,
+        member,
+        config,
+        caseRow: row,
+        action,
+        actorId: interaction.user.id,
+        actorTag: interaction.user.tag,
+      });
+      if (!result.resolved) {
+        await interaction.editReply("Another administrator already resolved this case.");
+        return;
+      }
+      const completedAction = {
+        approve: "approved",
+        deny: "denied",
+        ban: "banned",
+      }[action];
+      await interaction.editReply(`Case ${caseCode} was ${completedAction} by ${interaction.user.tag}.`);
+    } catch (error) {
+      console.error("[Verification Review] Action failed:", error.message);
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply("This review action could not be completed. The case remains available for review.").catch(() => {});
+      } else {
+        await interaction.reply({
+          content: "This review action could not be completed.",
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+    }
     return;
   }
 

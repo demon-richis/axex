@@ -75,6 +75,22 @@ const commands = [
         required: false,
       },
       {
+        name: "member-timeout-minutes",
+        description: "Kick unfinished verifications after this many minutes (0 disables)",
+        type: 4,
+        required: false,
+        min_value: 0,
+        max_value: 10080,
+      },
+      {
+        name: "timeout-reminder-minutes",
+        description: "Send the reminder this many minutes after verification starts",
+        type: 4,
+        required: false,
+        min_value: 1,
+        max_value: 10079,
+      },
+      {
         name: "new-account-action",
         description: "Action for accounts below min-age (default: warn)",
         type: 3,

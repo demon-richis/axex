@@ -516,6 +516,8 @@ async function autoSetup(guild, options = {}) {
       vpnCheck: options.vpnCheck ?? true,
       newAccountAction: options.newAccountAction || "warn",
       suspiciousAction: options.suspiciousAction || "flag",
+      memberTimeoutMinutes: options.memberTimeoutMinutes ?? 0,
+      timeoutReminderMinutes: options.timeoutReminderMinutes ?? 30,
       webhookUrl: webhookUrl,
     };
     currentStep = 10;

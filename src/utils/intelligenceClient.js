@@ -51,4 +51,18 @@ async function recordEvent(userId, guildId, eventType, data = {}) {
   }
 }
 
-module.exports = { analyzeUser, recordEvent };
+async function flagAccount(userId, reason, flaggedBy) {
+  if (!INTEL_URL || !INTEL_KEY) {
+    throw new Error("Intelligence service is required to add a ban blocklist entry");
+  }
+  const response = await fetch(`${INTEL_URL}/flag/${encodeURIComponent(userId)}`, {
+    method: "POST",
+    headers: { "X-API-Key": INTEL_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ reason, severity: "critical", flaggedBy }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) throw new Error(`Could not add intelligence blocklist entry (HTTP ${response.status})`);
+  return response.json();
+}
+
+module.exports = { analyzeUser, recordEvent, flagAccount };

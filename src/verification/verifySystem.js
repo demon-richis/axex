@@ -241,6 +241,21 @@ async function handleVerifyStart(interaction, config, options = {}) {
     intelligence,
     recentJoinCount: getRecentJoinCount(member.guild.id),
   });
+  const verificationPolicy = buildVerificationPolicy(config);
+  const timeoutEnabled = verificationPolicy.memberTimeoutMinutes > 0;
+  let timeoutLinkExpiry = new Date(
+    Date.now() +
+      (timeoutEnabled
+        ? verificationPolicy.memberTimeoutMinutes
+        : 10) *
+        60_000,
+  );
+  const memberTimeout = timeoutEnabled
+    ? {
+        timeoutMinutes: verificationPolicy.memberTimeoutMinutes,
+        reminderMinutes: verificationPolicy.timeoutReminderMinutes,
+      }
+    : null;
 
   // Reuse a pending portal token where possible, while keeping a durable bot-side case.
   let token = null;
@@ -292,6 +307,26 @@ async function handleVerifyStart(interaction, config, options = {}) {
       token = data?.token || null;
       referenceId = data?.referenceId || null;
       caseCode = data?.caseCode || null;
+      if (timeoutEnabled && token) {
+        const existingCase = referenceId
+          ? await caseStore.getByReference(interaction.guildId, referenceId)
+          : null;
+        const startedAt = existingCase?.created_at
+          ? new Date(existingCase.created_at).getTime()
+          : Date.now();
+        const deadline = new Date(
+          startedAt + verificationPolicy.memberTimeoutMinutes * 60_000,
+        );
+        const currentExpiry = data?.expiresAt
+          ? new Date(data.expiresAt).getTime()
+          : 0;
+        if (currentExpiry < deadline.getTime()) {
+          timeoutLinkExpiry = deadline;
+          token = null;
+          referenceId = null;
+          caseCode = null;
+        }
+      }
       if (token && referenceId) {
         caseRow = await caseStore.ensureForReference({
           guildId: member.guild.id,
@@ -345,9 +380,9 @@ async function handleVerifyStart(interaction, config, options = {}) {
             guildId: interaction.guildId,
             guildName: interaction.guild.name,
             guildMemberCount: interaction.guild.memberCount,
-            expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+            expiresAt: timeoutLinkExpiry.toISOString(),
             caseCode: reserved.case_code,
-            policy: buildVerificationPolicy(config),
+            policy: verificationPolicy,
             level: verificationSignals.level,
             autoCandidate: verificationSignals.autoCandidate,
             profileSignals: verificationSignals.profileSignals,
@@ -363,7 +398,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
           caseCode = created?.caseCode || reserved.case_code;
           const expiresAt = created?.expiresAt
             ? new Date(created.expiresAt)
-            : new Date(Date.now() + 10 * 60 * 1000);
+            : timeoutLinkExpiry;
 
           if (created?.reused && referenceId) {
             const existing = await caseStore.ensureForReference({
@@ -378,6 +413,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
                   referenceId,
                   tokenExpiresAt: expiresAt,
                   caseCode,
+                  memberTimeout,
                 })
               : null;
           } else {
@@ -385,6 +421,7 @@ async function handleVerifyStart(interaction, config, options = {}) {
               referenceId,
               tokenExpiresAt: expiresAt,
               caseCode,
+              memberTimeout,
             });
           }
           caseCode = caseRow?.case_code || caseCode;

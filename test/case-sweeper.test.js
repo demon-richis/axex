@@ -250,3 +250,91 @@ test("menu expiry is skipped when only claimExpired is injected", async () => {
   assert.equal(claims, 1);
   sweeper.stop();
 });
+
+test("review timeout quarantines once and resolves the case buttons", async () => {
+  const member = {
+    id: "user-review",
+    user: { tag: "review-user#0001" },
+    async send() {},
+  };
+  const guild = makeClient(member).guilds.cache.get("guild-1");
+  const reviewRow = makeRow("52345678", { id: 52, user_id: member.id });
+  const calls = [];
+  const sweeper = createCaseSweeper(
+    { guilds: { cache: new Map([["guild-1", guild]]) } },
+    {
+      claimExpired: async () => [],
+      claimReviewTimeouts: async () => [reviewRow],
+      finishReviewAction: async (input) => {
+        calls.push(["finish", input]);
+        return reviewRow;
+      },
+      releaseReviewAction: async (...input) => calls.push(["release", ...input]),
+      updatePortalReview: async (...input) => calls.push(["portal", ...input]),
+      getGuildConfig: async () => ({
+        setup_done: true,
+        unverified_role_id: "unverified",
+        quarantined_role_id: "quarantined",
+      }),
+      quarantineMember: async (...input) => calls.push(["quarantine", ...input]),
+      logReviewAction: async (...input) => calls.push(["audit", ...input]),
+      sendLiveUpdate: async (_guild, data) => calls.push(["log", data]),
+    },
+  );
+
+  const result = await sweeper.sweepReviewTimeouts();
+
+  assert.equal(result.length, 1);
+  assert.ok(calls.some(([name]) => name === "quarantine"));
+  assert.ok(calls.some(([name]) => name === "portal"));
+  assert.ok(calls.some(([name, data]) => name === "log" && data.logType === "reviewResolved"));
+  assert.ok(calls.some(([name, data]) => name === "finish" && data.action === "timeout"));
+  assert.equal(calls.some(([name]) => name === "release"), false);
+  sweeper.stop();
+});
+
+test("member timeout sends the reminder before kicking the unfinished member", async () => {
+  const actions = [];
+  const member = {
+    id: "user-member-timeout",
+    user: { tag: "timeout-user#0001" },
+    async send(payload) { actions.push(["reminder", payload]); },
+    async kick(reason) { actions.push(["kick", reason]); },
+  };
+  const sweeper = createCaseSweeper(makeClient(member), {
+    claimExpired: async () => [],
+    claimVerificationReminders: async () => [
+      {
+        id: 71,
+        guild_id: "guild-1",
+        user_id: member.id,
+        summary: { memberTimeout: { timeoutMinutes: 15, reminderMinutes: 10 } },
+      },
+    ],
+    finishVerificationReminder: async (_id, sent) => actions.push(["reminderSaved", sent]),
+    claimMemberVerificationTimeouts: async () => [
+      { id: 72, guild_id: "guild-1", user_id: member.id, reference_id: "AX-TIMEOUT" },
+    ],
+    finishMemberVerificationTimeout: async (id) => {
+      actions.push(["finished", id]);
+      return { id };
+    },
+    releaseMemberVerificationTimeout: async (...args) => actions.push(["released", ...args]),
+    logReviewAction: async (event) => actions.push(["audit", event.action]),
+  });
+
+  const result = await sweeper.sweepMemberTimeouts();
+
+  assert.equal(result.reminders.length, 1);
+  assert.equal(result.timeouts.length, 1);
+  assert.equal(actions[0][0], "reminder");
+  assert.match(actions[0][1].content, /kicked in 5 minutes/);
+  assert.equal(actions[1][0], "reminderSaved");
+  assert.deepEqual(actions[2], [
+    "kick",
+    "Verification was not completed before the configured timeout",
+  ]);
+  assert.deepEqual(actions[3], ["finished", 72]);
+  assert.deepEqual(actions[4], ["audit", "VERIFICATION_TIMEOUT_KICK"]);
+  sweeper.stop();
+});

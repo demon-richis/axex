@@ -114,6 +114,28 @@ test("policy bounds prevent unsafe legacy values", () => {
   assert.equal(policy.verifyTimeoutSeconds, 15);
 });
 
+test("member verification timeout defaults off and accepts bounded persisted values", () => {
+  assert.equal(DEFAULT_VERIFICATION_POLICY.memberTimeoutMinutes, 0);
+  assert.equal(DEFAULT_VERIFICATION_POLICY.timeoutReminderMinutes, 30);
+  assert.deepEqual(
+    {
+      memberTimeoutMinutes: buildVerificationPolicy({
+        verification_timeout_minutes: 90,
+        verification_reminder_minutes: 45,
+      }).memberTimeoutMinutes,
+      timeoutReminderMinutes: buildVerificationPolicy({
+        verification_timeout_minutes: 90,
+        verification_reminder_minutes: 45,
+      }).timeoutReminderMinutes,
+    },
+    { memberTimeoutMinutes: 90, timeoutReminderMinutes: 45 },
+  );
+  assert.equal(
+    buildVerificationPolicy({ verification_timeout_minutes: 99_999 }).memberTimeoutMinutes,
+    10_080,
+  );
+});
+
 test("settings embed exposes all mapped policy controls", () => {
   const embeds = require("../src/config/messages");
   const description = embeds.setup.settings({
@@ -129,7 +151,7 @@ test("settings embed exposes all mapped policy controls", () => {
     auto_verify_enabled: true,
     member_role_ids: ["role-1"],
   }).data.description;
-  for (const expected of ["Attempts", "Cooldowns", "VPN action", "Honeypot", "New account", "Verify timeout", "Review", "Raid action", "Auto verify", "Member roles"]) {
+  for (const expected of ["Attempts", "Cooldowns", "VPN action", "Honeypot", "New account", "Verify timeout", "Member timeout", "Review", "Raid action", "Auto verify", "Member roles"]) {
     assert.match(description, new RegExp(expected));
   }
 });

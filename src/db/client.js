@@ -162,6 +162,7 @@ async function checkVerificationPolicySchema(query = getSql(), logger = console)
           'cooldown_seconds_1', 'cooldown_seconds_2', 'review_timeout_hours',
           'network_fail_mode', 'auto_verify_enabled', 'vpn_action',
           'honeypot_action', 'new_account_days', 'new_account_action',
+          'verification_timeout_minutes', 'verification_reminder_minutes',
           'raid_action', 'captcha_provider', 'orbit_difficulty')
     `;
     const present = new Set(rows.map((row) => row.column_name));
@@ -209,7 +210,8 @@ async function saveGuildConfig(config) {
         quarantined_role_id, member_role_ids, verify_timeout,
         min_account_age, raid_threshold, raid_age, raid_timing,
         honeypot_enabled, vpn_check_enabled, new_account_action,
-        suspicious_action, webhook_url, setup_done
+        suspicious_action, webhook_url, setup_done,
+        verification_timeout_minutes, verification_reminder_minutes
       ) VALUES (
         ${config.guildId}, ${config.verifyChannelId}, ${config.quarantineChannelId},
         ${config.logChannelId}, ${config.verifiedRoleId}, ${config.unverifiedRoleId},
@@ -217,7 +219,8 @@ async function saveGuildConfig(config) {
         ${config.minAccountAge ?? 7}, ${config.raidThreshold ?? 10}, ${config.raidAge ?? 30},
         ${config.raidTiming ?? 2500}, ${config.honeypot ?? true}, ${config.vpnCheck ?? true},
         ${config.newAccountAction ?? "warn"}, ${config.suspiciousAction ?? "flag"},
-        ${config.webhookUrl ?? null}, true
+        ${config.webhookUrl ?? null}, true,
+        ${config.memberTimeoutMinutes ?? 0}, ${config.timeoutReminderMinutes ?? 30}
       )
       ON CONFLICT (guild_id) DO UPDATE SET
         verify_channel_id      = EXCLUDED.verify_channel_id,
@@ -237,6 +240,8 @@ async function saveGuildConfig(config) {
         new_account_action     = EXCLUDED.new_account_action,
         suspicious_action      = EXCLUDED.suspicious_action,
         webhook_url            = EXCLUDED.webhook_url,
+        verification_timeout_minutes = EXCLUDED.verification_timeout_minutes,
+        verification_reminder_minutes = EXCLUDED.verification_reminder_minutes,
         setup_done             = true
     `;
     guildConfigCache.delete(config.guildId);

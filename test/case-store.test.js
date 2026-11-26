@@ -146,6 +146,53 @@ test("completed cases are never claimed as expired", async () => {
   assert.equal(claimed.some((item) => item.reference_id === "AX-EXP-9"), false);
 });
 
+test("member timeout reminder is claimed once and only due cases are kicked", async () => {
+  const store = createCaseStore(() => makeSqlTag(db));
+  const reminderCase = await store.ensureForReference({
+    guildId: "g-timeout",
+    userId: "u-reminder",
+    referenceId: "AX-TIMEOUT-REMINDER",
+  });
+  await store.attachToken(reminderCase.id, {
+    referenceId: "AX-TIMEOUT-REMINDER",
+    tokenExpiresAt: new Date(Date.now() + 60 * 60_000),
+    memberTimeout: { timeoutMinutes: 10, reminderMinutes: 5 },
+  });
+  await db.query(
+    "UPDATE verification_cases SET created_at = NOW() - INTERVAL '6 minutes' WHERE id = $1",
+    [reminderCase.id],
+  );
+
+  const reminders = await store.claimVerificationReminders();
+  assert.equal(reminders.length, 1);
+  assert.equal(reminders[0].summary.memberTimeout.reminderState, "sending");
+  assert.deepEqual(await store.claimVerificationReminders(), []);
+  await store.finishVerificationReminder(reminderCase.id, true);
+  assert.deepEqual(await store.claimVerificationReminders(), []);
+
+  const timeoutCase = await store.ensureForReference({
+    guildId: "g-timeout",
+    userId: "u-timeout",
+    referenceId: "AX-TIMEOUT-KICK",
+  });
+  await store.attachToken(timeoutCase.id, {
+    referenceId: "AX-TIMEOUT-KICK",
+    tokenExpiresAt: new Date(Date.now() + 60 * 60_000),
+    memberTimeout: { timeoutMinutes: 10, reminderMinutes: 5 },
+  });
+  await db.query(
+    "UPDATE verification_cases SET created_at = NOW() - INTERVAL '11 minutes' WHERE id = $1",
+    [timeoutCase.id],
+  );
+
+  const timedOut = await store.claimMemberVerificationTimeouts();
+  assert.deepEqual(timedOut.map((row) => row.id), [timeoutCase.id]);
+  assert.equal(timedOut[0].status, "verification_timeout_processing");
+  assert.deepEqual(await store.claimMemberVerificationTimeouts(), []);
+  assert.equal((await store.finishMemberVerificationTimeout(timeoutCase.id)).status, "timed_out");
+  assert.deepEqual(await store.claimMemberVerificationTimeouts(), []);
+});
+
 test("server tag is a disabled button labelled '- servername', truncated to 80 characters", () => {
   assert.equal(serverTagLabel("Axex QA lab"), "- Axex QA lab");
   assert.equal(serverTagLabel("   "), "- Unknown server");

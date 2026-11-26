@@ -222,6 +222,9 @@ app.post("/webhook/verify-result", async (req, res) => {
     attempts,
     cooldownUntil,
     locked,
+    reviewRequired,
+    reviewTimeoutHours,
+    level,
   } = payload;
   const normalizedGuildId = String(guildId || "").trim();
   const normalizedUserId = String(userId || "").trim();
@@ -248,6 +251,23 @@ app.post("/webhook/verify-result", async (req, res) => {
       received: false,
       error: "A valid verification reference is required",
       code: "INVALID_REFERENCE_ID",
+    });
+  }
+  if (
+    reviewRequired === true &&
+    (passed !== false ||
+      level !== "high" ||
+      !Number.isInteger(Number(reviewTimeoutHours)) ||
+      Number(reviewTimeoutHours) < 1 ||
+      Number(reviewTimeoutHours) > 168 ||
+      !/^[1-9][0-9]{7}$/.test(String(caseCode || ""))
+    )
+  ) {
+    return res.status(400).json({
+      received: false,
+      error: "Invalid manual review callback",
+      code: "INVALID_REVIEW_CALLBACK",
+      referenceId: normalizedReferenceId,
     });
   }
 
@@ -426,6 +446,57 @@ app.post("/webhook/verify-result", async (req, res) => {
       accountAge,
     });
     if (!passed) {
+      if (reviewRequired === true) {
+        if (!config.unverified_role_id) {
+          throw new Error("Unverified role is not configured for manual review");
+        }
+        const roleCache = member.roles.cache;
+        if (config.verified_role_id && (!roleCache || roleCache.has(config.verified_role_id))) {
+          await member.roles.remove(config.verified_role_id);
+        }
+        if (config.unverified_role_id && (!roleCache || !roleCache.has(config.unverified_role_id))) {
+          await member.roles.add(config.unverified_role_id);
+        }
+        const message = await sendLiveUpdate(guild, {
+          logType: "reviewPending",
+          member,
+          referenceId: normalizedReferenceId,
+          caseCode,
+          accountAge,
+          reason: flagReason || "High-risk verification requires review",
+          level,
+          review: { timeoutHours: Number(reviewTimeoutHours) },
+        });
+        if (!message) throw new Error("Could not create the manual review case log");
+        await logVerificationEvent({
+          eventId: `REVIEW-PENDING-${normalizedReferenceId}`,
+          referenceId: normalizedReferenceId,
+          guildId: normalizedGuildId,
+          userId: normalizedUserId,
+          username: member.user.tag,
+          action: "VERIFICATION_REVIEW_PENDING",
+          reason: flagReason || "High-risk verification requires review",
+          accountAge,
+        });
+        await member
+          .send(
+            withServerTag(guild, {
+              content:
+                "Your verification challenge is complete, but an Axex administrator must review your account before access is granted. Case ID: " +
+                String(caseCode || normalizedReferenceId),
+            }),
+          )
+          .catch((error) => {
+            console.error("[WebhookReceiver] Could not send review-pending DM:", error.message);
+          });
+        const completed = await completeVerificationCallback(
+          normalizedReferenceId,
+          callbackClaimId,
+        );
+        callbackClaimId = null;
+        if (!completed) throw new Error("Could not complete manual review callback receipt");
+        return res.json({ received: true, passed: false, reviewPending: true });
+      }
       const reason = vpnDetected
         ? "VPN_PROXY_DETECTED"
         : flagReason || failureReason || "VERIFICATION_FAILED";

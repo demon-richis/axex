@@ -411,6 +411,7 @@ module.exports.success = ({
         ? `${E.invisible} ${portalRegistrationStatus === "registered" ? E.success : E.warning} **Portal:** ${portalRegistrationStatus === "registered" ? "registered" : "not confirmed"}`
         : null,
       `${E.invisible} ${E.protected} **Rules:** \`${channelsUpdated}\` restricted channels · Min age \`${settings.minAge ?? 7}d\``,
+      `${E.invisible} ${E.timeout} **Member timeout:** \`${(settings.memberTimeoutMinutes ?? 0) > 0 ? `${settings.memberTimeoutMinutes}m / reminder ${settings.timeoutReminderMinutes ?? 30}m` : "disabled"}\``,
       `${E.invisible} ${E.antiRaid} **Raid:** \`${settings.raidThreshold ?? 10}/30s\` · ${E.honeypot} **Honeypot:** ${settings.honeypot === false ? "Off" : "On"} · ${E.vpn} **VPN:** ${settings.vpnCheck === false ? "Off" : "On"}`,
       hierarchyOk
         ? `-# ${E.invisible} ${E.success} Setup completed successfully`
@@ -426,6 +427,7 @@ module.exports.settings = (config = {}) =>
       `${E.invisible} ${E.network} **VPN action:** \`${config.vpn_check_enabled === false ? "allow" : "block"}\` · **Honeypot:** \`${config.honeypot_enabled === false ? "flag" : "quarantine"}\`\n` +
       `${E.invisible} ${E.user} **New account:** \`${config.min_account_age ?? 7} days / ${config.new_account_action === "block" ? "block" : config.new_account_action === "strict" ? "raise_level" : "flag"}\`\n` +
       `${E.invisible} ${E.timeout} **Verify timeout:** \`${config.verify_timeout ?? 60}s\` · **Review:** \`${config.review_enabled ? "enabled" : "disabled"}\`\n` +
+      `${E.invisible} ${E.reminder} **Member timeout:** \`${(config.verification_timeout_minutes ?? 0) > 0 ? `${config.verification_timeout_minutes}m / reminder ${config.verification_reminder_minutes ?? 30}m` : "disabled"}\`\n` +
       `${E.invisible} ${E.warning} **Raid action:** \`${config.suspicious_action === "quarantine" ? "force_review_new_accounts" : "flag"}\` · **Auto verify:** \`${config.auto_verify_enabled ? "enabled" : "disabled"}\`\n` +
       `${E.invisible} ${E.role} **Member roles:** \`${Array.isArray(config.member_role_ids) ? config.member_role_ids.length : 0} configured\`\n` +
       `-# ${E.invisible} ${E.reminder} Existing guilds retain legacy defaults until settings are changed.`,

@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS guild_config (
   quarantined_role_id   TEXT,
   member_role_ids       TEXT[] DEFAULT '{}'::TEXT[],
   verify_timeout        INTEGER DEFAULT 60,
+  verification_timeout_minutes INTEGER DEFAULT 0,
+  verification_reminder_minutes INTEGER DEFAULT 30,
   min_account_age       INTEGER DEFAULT 7,
   raid_threshold        INTEGER DEFAULT 10,
   raid_age              INTEGER DEFAULT 30,
@@ -26,6 +28,12 @@ ALTER TABLE guild_config
 
 ALTER TABLE guild_config
   ADD COLUMN IF NOT EXISTS verify_timeout INTEGER DEFAULT 60;
+
+ALTER TABLE guild_config
+  ADD COLUMN IF NOT EXISTS verification_timeout_minutes INTEGER DEFAULT 0;
+
+ALTER TABLE guild_config
+  ADD COLUMN IF NOT EXISTS verification_reminder_minutes INTEGER DEFAULT 30;
 
 ALTER TABLE guild_config
   ADD COLUMN IF NOT EXISTS min_account_age INTEGER DEFAULT 7;
