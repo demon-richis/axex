@@ -28,6 +28,14 @@ Intelligence: DATABASE_URL, DISCORD_TOKEN, PORTAL_URL, API_KEY, PORT, NODE_ENV.
 
 Orbit: NODE_ENV, PORT, TRUST_PROXY, ORBIT_SIGNING_KEY, ORBIT_SIGNING_KEY_ID, ORBIT_PREVIOUS_SIGNING_KEYS, ORBIT_SITE_SECRET, ORBIT_PREVIOUS_SITE_SECRETS, ORBIT_PUBLIC_URL, ALLOWED_ORIGINS, DATABASE_URL, PG_POOL_MAX, DB_CONNECT_TIMEOUT_MS, DB_QUERY_TIMEOUT_MS, MIN_BEHAVIOR, ORBIT_METRICS_ENABLED, LOG_LEVEL.
 
+## Legal
+
+- Data inventory: `axex-guardian-portal/docs/legal/DATA_INVENTORY.md`
+- Privacy Policy source: `axex-guardian-portal/legal/PRIVACY_POLICY.md`
+- Terms of Service source: `axex-guardian-portal/legal/TERMS_OF_SERVICE.md`
+- Portal pages: `/privacy` and `/terms`
+- Repository pointers: each repo's `LEGAL.md` (where present) and `SECURITY.md`
+
 ## Migration order
 
 Portal: apply `drizzle/0000` through `drizzle/0012` in numeric order once, using the migration journal.
