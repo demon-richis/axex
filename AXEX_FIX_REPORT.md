@@ -30,16 +30,16 @@ B5a | commit 4440ec6d246a3c4be779f21a5341c33b95540d59 | demon-richis/axex | src/
 B5b | commit 757ae54298fc1db6d39baf9e9010b86962ed162a | demon-richis/axex | src/utils/axexAdmin.js, src/commands/axexAdmin.js, src/commands/axex.js, src/commands/quarantine.js, src/interactions/buttonHandler.js, src/deploy-commands.js | tests: Axex admin authorization, owner-only admin commands, review/quarantine authorization regressions; full suite 185/185 and syntax checks | result: owner-managed guild-scoped admins now gate quarantine and bot-review actions; passed and pushed
 L2 | commit 1dc9fd9d48122296fbd2f24d7578d3a526e6e025 | demon-richis/axex-account-intelligence | src/analyzers/profileAnalyzer.js, test/core.test.js | tests: 24/24, npm run check | result: profile richness reduces risk by at most 10 points and only decoration sets the preliminary autoCandidate; passed and pushed
 83aa066 | commit 83aa066 | demon-richis/axex | src/utils/verificationSignals.js, src/utils/intelligenceClient.js, src/verification/verifySystem.js, test/verification-signals.test.js, test/verification-token-signals.test.js | bot tests 201/201, npm run check | result: bot sends join-time verification levels and trusted account/risk signals; passed and pushed
-B5c | commit 1631d67 | demon-richis/axex | src/commands/axexAdmin.js, src/utils/axexAdmin.js, src/commands/axex.js, src/commands/eventmode.js, src/commands/vsetup.js, src/commands/verificationLog.js, src/interactions/modalHandler.js, src/interactions/logSelectHandler.js | bot tests 201/201, npm run check | result: guild-scoped owner-only Axex admin management, numeric snowflake and bot guards, Axex log entries, and shared bot-side authorizer coverage; passed
-L3 | commit 5130b1a | demon-richis/axex and demon-richis/axex-guardian-portal | verification level pipeline, portal submit/challenge paths, test/verification-level.test.mjs | bot 201/201, portal 104/104, portal check/build | result: verified Critical/High/Medium/Low/Auto behavior matrix and end-to-end level handling; passed
-O1a | commit 2853ff2 | demon-richis/axex-orbit | public/frame.js, test/widget.test.js, test/orbit.test.js, package.json | Orbit tests 41/41, testA11y 1/1, npm run check | result: widget test harness and syntax lint fixed; approved widget behavior retained; passed
-O1b/O1c | commit 5130b1a | demon-richis/axex-guardian-portal | src/lib/orbit.server.ts, src/routes/api/challenge.ts, src/routes/api/orbit.session.ts, src/lib/verification-submit.server.ts, .env.example, README.md | portal 104/104, npm run check, production build | result: server-side Orbit integration, High-only provider routing, fallback/fail policies, replay protection, logs, and Vercel documentation; passed
+B5c | commit d9a0120 | demon-richis/axex | src/commands/axexAdmin.js, src/utils/axexAdmin.js, src/commands/axex.js, src/commands/eventmode.js, src/commands/vsetup.js, src/commands/verificationLog.js, src/interactions/modalHandler.js, src/interactions/logSelectHandler.js | bot tests 201/201, npm run check | result: guild-scoped owner-only Axex admin management, numeric snowflake and bot guards, Axex log entries, and shared bot-side authorizer coverage; passed
+L3 | commits 83aa066 (axex), aef8d06 (axex-guardian-portal) | verification level pipeline, portal submit/challenge paths, test/verification-level.test.mjs | bot 201/201, portal 104/104, portal check/build | result: verified Critical/High/Medium/Low/Auto behavior matrix and end-to-end level handling; passed
+O1a | commit 5c3361f | demon-richis/axex-orbit | public/frame.js, test/widget.test.js, test/orbit.test.js, package.json | Orbit tests 41/41, testA11y 1/1, npm run check | result: widget test harness and syntax lint fixed; approved widget behavior retained; passed
+O1b/O1c | commit 06eba14 | demon-richis/axex-guardian-portal | src/lib/orbit.server.ts, src/routes/api/challenge.ts, src/routes/api/orbit.session.ts, src/lib/verification-submit.server.ts, .env.example, README.md | portal 104/104, npm run check, production build | result: server-side Orbit integration, High-only provider routing, fallback/fail policies, replay protection, logs, and Vercel documentation; passed
 Q1a | commit 3952487 | demon-richis/axex-guardian-portal | repository formatting | portal npm run format | result: formatting-only pass completed
-Q1b | commit 5130b1a | demon-richis/axex-guardian-portal | src/lib/discord-identity.server.ts, src/routes/index.tsx, src/lib/verification-submit.server.ts | portal 104/104, npm run check, production build | result: lint/TypeScript debt resolved for the recorded TypeScript and formatting/lint failures
+Q1b | commit 06eba14 | demon-richis/axex-guardian-portal | src/lib/discord-identity.server.ts, src/routes/index.tsx, src/lib/verification-submit.server.ts | portal 104/104, npm run check, production build | result: lint/TypeScript debt resolved for the recorded TypeScript and formatting/lint failures
 L2 | commit 1dc9fd9d48122296fbd2f24d7578d3a526e6e025 | demon-richis/axex-account-intelligence | src/analyzers/profileAnalyzer.js, test/core.test.js | intelligence 24/24, npm run check | result: profile richness capped at 10 risk points and decoration-only autoCandidate; passed
-L3 | commit d2fd86c | demon-richis/axex-account-intelligence | src/analyzers/behaviorTracker.js | intelligence 24/24, npm run check | result: fixed behavior average floating-point representation; passed
-S1 | commit 5130b1a | all four repos | package manifests/locks and dependency files | production npm audit, secret scans | result: bot/intelligence/Orbit 0 production findings; portal residual nested Zod advisories require follow-up, exact pins recorded
-R1 | commit 107db5c | demon-richis/axex | AXEX_FIX_REPORT.md, HANDOVER.md | final four-repo validation | result: handover report and operating guide prepared
+L3 | commit c54ffb6 | demon-richis/axex-account-intelligence | src/analyzers/behaviorTracker.js | intelligence 24/24, npm run check | result: fixed behavior average floating-point representation; passed
+S1 | commits e39c261 (axex), f971e99 (axex-guardian-portal), db45f2d (axex-account-intelligence), c8a4561 (axex-orbit) | all four repos | package manifests/locks and dependency files | production npm audit, secret scans | result: bot/intelligence/Orbit 0 production findings; portal residual nested Zod advisories require follow-up, exact pins recorded
+R1 | commit 3140d01 | demon-richis/axex | AXEX_FIX_REPORT.md, HANDOVER.md | final four-repo validation | result: handover report and operating guide prepared
 
 ## Baseline P0
 
@@ -70,3 +70,44 @@ R1 | commit 107db5c | demon-richis/axex | AXEX_FIX_REPORT.md, HANDOVER.md | fina
 - Final validation passed: Axex `npm test` 201/201, `npm run check`, and `npm run build`; Guardian Portal `npm test` 104/104, `npm run check`, and `npm run build`; account-intelligence `npm test` 24/24 and `npm run check`; AxexOrbit `npm run check`, `testA11y` 1/1, `testSecurity` 4/4, and red-team 100% determined-attacker cases.
 - Tracked-file secret scan found no private-key or token content. `.env.example` files are documentation templates; runtime `.env` files remain ignored by every repository.
 - The former nested-Zod production finding is resolved. Remaining deployment actions still require provider/database ownership credentials and are not performed from this workspace.
+
+LG1 | commit 03a1d37 | axex-guardian-portal | docs/legal/DATA_INVENTORY.md | portal 104/104, check, build passed | code-grounded data inventory added
+LG2 | commit ec68465 | axex-guardian-portal | legal/PRIVACY_POLICY.md, legal/TERMS_OF_SERVICE.md | portal 104/104, check, build passed | technical legal drafts added
+LG3 | commit 928923e | axex-guardian-portal | src/routes/terms.tsx, src/routes/privacy.tsx, src/lib/legal-markdown.tsx, src/routes/verify.tsx, public/manus-routes.json, src/routeTree.gen.tsx | portal 104/104, check, build passed | safe legal routes and verification footer links added
+LG4 | commits 71d6ed0 (portal), d79f433 (bot), 226c977 (intelligence), 9ae7229 (Orbit) | all four repos | LICENSE, package.json, package-lock.json, README.md | production license audits recorded below; no GPL/AGPL/SSPL/unknown production licenses | license metadata and repository license notices added
+LG5 | commits 3a60684 (portal), ac3e057 (bot), c2856ac (intelligence), a290a27 (Orbit) | all four repos | SECURITY.md, LEGAL.md, axex/HANDOVER.md | all required validation suites passed | security reporting and legal pointers added
+LG6 | pending final report commit | axex | AXEX_FIX_REPORT.md | all four repositories validated; historical hash corrections recorded | corrected historical hashes and legal report sections added
+
+## Production dependency license audit
+
+- Axex: MIT 130, Apache-2.0 7, ISC 7, BSD-3-Clause 2, BSD-2-Clause 1, 0BSD 1, MIT OR CC0-1.0 1, UNLICENSED 1. No GPL/AGPL/SSPL/unknown production license reported.
+- Guardian Portal: MIT 132, ISC 10, Apache-2.0 9, MPL-2.0 6, Python-2.0 1, CC-BY-4.0 1, Unlicense 1, 0BSD 1. No GPL/AGPL/SSPL/unknown production license reported.
+- Account intelligence: MIT 79, ISC 4, BSD-2-Clause 1, BSD-3-Clause 1, UNLICENSED 1. No GPL/AGPL/SSPL/unknown production license reported.
+- AxexOrbit: MIT 54, BSD-3-Clause 4, ISC 4. No GPL/AGPL/SSPL/unknown production license reported.
+- Audit command: `npx --yes license-checker --production --summary`; results are informational and do not replace legal review of dependency terms.
+
+## Legal assumptions
+
+- The placeholders required by the task remain until the owner supplies contact, support, portal, owner, and governing-law details.
+- The privacy draft describes only fields and processors visible in repository code/config; provider-side logs, regions, backups, and legal terms remain owner confirmations.
+- The terms describe configurable attempts, cooldowns, lockouts, and quarantine behavior without presenting the current default maximum as universal.
+- “Quarantine, not kick” describes the configured security path; server owners remain responsible for their actual moderation settings and permissions.
+- Orbit’s repository statements about replay identifiers and non-persistence are limited to code in that repository.
+
+## [TO CONFIRM BY OWNER]
+
+- Actual production database instances, applied migrations, backups, replicas, regions, and access roles.
+- Production environment values, trusted proxy mode, Orbit enablement, policy actions, retention values, and provider URLs.
+- Provider/subprocessor list, regions, processing terms, upstream logs, user-agent/IP retention, and deletion execution.
+- Whether intelligence outcome records receive every bot/portal review decision.
+- Honeypot rendering and enablement for each production guild.
+- Retention/deletion schedules for profiles, alt groups, risk history, join patterns, flagged accounts, bot cases, bot logs, and portal verification state.
+- Production scheduling of portal cleanup and operational cross-guild isolation.
+- Live Discord role, kick/ban, webhook, and log delivery permissions.
+
+## Final validation
+
+- Bot: npm test 201/201, npm run check, npm run build passed
+- Guardian Portal: npm test 104/104, npm run check, npm run build passed
+- Account intelligence: npm test 24/24, npm run check passed
+- AxexOrbit: npm run check passed, testA11y 1/1, testSecurity 4/4, red-team passed (0% blind/automated categories; 100% determined-attacker category)
