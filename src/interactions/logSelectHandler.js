@@ -1,6 +1,7 @@
-const { MessageFlags, PermissionFlagsBits } = require("discord.js");
+const { MessageFlags } = require("discord.js");
 const { getCaseSection } = require("../utils/liveUpdate");
 const messages = require("../config/messages");
+const { isAxexAdmin } = require("../utils/axexAdmin");
 
 const VALID_SECTIONS = new Set([
   "intelligence",
@@ -23,7 +24,7 @@ async function execute(interaction) {
     return;
   }
 
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  if (!(await isAxexAdmin(interaction.guildId, interaction.user.id, interaction.guild.ownerId))) {
     await interaction.reply({
       content: "You need Manage Server to view verification logs.",
       flags: MessageFlags.Ephemeral,

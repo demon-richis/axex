@@ -291,12 +291,16 @@ test("setup creates missing resources and progress reports each operation in ord
   const events = [];
   global.fetch = async () => ({ ok: true });
   const result = await autoSetup(guild, {
+    memberTimeoutMinutes: 45,
+    timeoutReminderMinutes: 20,
     onProgress: async (...event) => events.push(event),
   });
   assert.equal(guild.roleCreates, 3);
   assert.equal(guild.channelCreates, 3);
   assert.equal(result.panelStatus, "created");
   assert.equal(result.portalRegistrationStatus, "registered");
+  assert.equal(dbState.config.memberTimeoutMinutes, 45);
+  assert.equal(dbState.config.timeoutReminderMinutes, 20);
   const successfulSteps = events
     .filter(([, status]) => status === "success")
     .map(([step]) => step);
@@ -418,6 +422,32 @@ test("cancel performs no role persistence, resource creation, or deletion", asyn
   };
   assert.equal(await vsetup.handleSetupButton(interaction), true);
   assert.equal(updates, 1);
+  assert.equal(dbState.memberRoleSaves, 0);
+});
+
+test("vsetup rejects a reminder that is not earlier than the member timeout", async () => {
+  const vsetup = require("../src/commands/vsetup");
+  let replyPayload = null;
+  const options = {
+    "member-timeout-minutes": 20,
+    "timeout-reminder-minutes": 20,
+  };
+  const interaction = {
+    guild: { id: "guild-timeout", ownerId: "123456789012345678" },
+    guildId: "guild-timeout",
+    memberPermissions: { has: () => true },
+    user: { id: "123456789012345678" },
+    options: {
+      getInteger(name) { return options[name] ?? null; },
+      getBoolean() { return null; },
+      getString() { return null; },
+    },
+    async reply(payload) { replyPayload = payload; },
+  };
+
+  await vsetup.execute(interaction);
+
+  assert.match(replyPayload.content, /reminder must be sent before/i);
   assert.equal(dbState.memberRoleSaves, 0);
 });
 

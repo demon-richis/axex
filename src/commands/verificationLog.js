@@ -1,11 +1,11 @@
 const {
   AttachmentBuilder,
   MessageFlags,
-  PermissionFlagsBits,
 } = require("discord.js");
 const { getVerificationTimeline, caseStore } = require("../db/client");
 const { getCaseView } = require("../utils/liveUpdate");
 const messages = require("../config/messages");
+const { isAxexAdmin } = require("../utils/axexAdmin");
 
 const CASE_CODE_PATTERN = /^\d{8}$/;
 const LEGACY_REFERENCE_PATTERN = /^AX-[A-Z0-9]{8,32}$/;
@@ -23,7 +23,7 @@ function validateCaseInput(value) {
 }
 
 async function execute(interaction) {
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  if (!(await isAxexAdmin(interaction.guildId, interaction.user.id, interaction.guild.ownerId))) {
     await interaction.reply({
       content: messages.system.verificationLogPermission(),
       flags: MessageFlags.Ephemeral,

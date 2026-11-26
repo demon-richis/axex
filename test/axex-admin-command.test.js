@@ -17,6 +17,7 @@ require.cache[dbPath] = {
   loaded: true,
   exports: {
     isAxexAdminsSchemaReady: () => state.schemaReady,
+    async getGuildConfig() { return null; },
     async addAxexAdmin(...args) {
       state.calls.push(["add", ...args]);
       return state.addResult;
@@ -36,11 +37,11 @@ require.cache[dbPath] = {
 
 const { execute } = require("../src/commands/axexAdmin");
 
-function makeInteraction({ action, userId = "owner-1", targetId = "user-2" }) {
+function makeInteraction({ action, userId = "123456789012345678", targetId = "123456789012345679" }) {
   const replies = [];
   return {
     interaction: {
-      guild: { id: "guild-1", ownerId: "owner-1" },
+      guild: { id: "guild-1", ownerId: "123456789012345678" },
       user: { id: userId },
       options: {
         getSubcommand: () => action,
@@ -77,26 +78,26 @@ test("only the guild owner can manage Axex administrators", async () => {
 
 test("owner can add, remove, and list guild-scoped administrators", async () => {
   resetState();
-  let context = makeInteraction({ action: "add", targetId: "admin-1" });
+  let context = makeInteraction({ action: "add", targetId: "123456789012345679" });
   await execute(context.interaction);
-  assert.deepEqual(state.calls[0], ["add", "guild-1", "admin-1", "owner-1"]);
+  assert.deepEqual(state.calls[0], ["add", "guild-1", "123456789012345679", "123456789012345678"]);
   assert.match(context.replies[0].content, /now an Axex administrator/);
 
   state.addResult = false;
-  context = makeInteraction({ action: "add", targetId: "admin-1" });
+  context = makeInteraction({ action: "add", targetId: "123456789012345679" });
   await execute(context.interaction);
   assert.match(context.replies[0].content, /already an Axex administrator/);
 
-  context = makeInteraction({ action: "remove", targetId: "admin-1" });
+  context = makeInteraction({ action: "remove", targetId: "123456789012345679" });
   await execute(context.interaction);
-  assert.deepEqual(state.calls.at(-1), ["remove", "guild-1", "admin-1"]);
+  assert.deepEqual(state.calls.at(-1), ["remove", "guild-1", "123456789012345679"]);
   assert.match(context.replies[0].content, /no longer an Axex administrator/);
 
-  state.admins = [{ user_id: "admin-1" }];
+  state.admins = [{ user_id: "123456789012345679" }];
   context = makeInteraction({ action: "list" });
   await execute(context.interaction);
   assert.deepEqual(state.calls.at(-1), ["list", "guild-1"]);
-  assert.match(context.replies[0].content, /<@admin-1>/);
+  assert.match(context.replies[0].content, /<@123456789012345679>/);
 });
 
 test("owner receives explicit migration instructions while admin storage is unavailable", async () => {

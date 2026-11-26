@@ -1,6 +1,7 @@
-const { MessageFlags, PermissionFlagsBits } = require("discord.js");
+const { MessageFlags } = require("discord.js");
 const embeds = require("../config/messages");
 const { beginPendingSetup, inspectResources } = require("../commands/vsetup");
+const { isAxexAdmin } = require("../utils/axexAdmin");
 
 function parseRoleIds(value) {
   return [
@@ -26,7 +27,7 @@ async function execute(interaction) {
     });
     return true;
   }
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  if (!(await isAxexAdmin(interaction.guild.id, interaction.user.id, interaction.guild.ownerId))) {
     await interaction.reply({
       embeds: [embeds.setup.permissionDenied()],
       flags: MessageFlags.Ephemeral,

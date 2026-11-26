@@ -9,7 +9,7 @@ const sweeperSource = fs.readFileSync(path.join(root, "src/utils/caseSweeper.js"
 
 test("every verification callback DM is wrapped with the originating server tag", () => {
   const calls = [...webhookSource.matchAll(/member\s*\.send\(\s*withServerTag\(guild/g)];
-  assert.equal(calls.length, 2, "success and failed/locked DMs must both be server-tagged");
+  assert.equal(calls.length, 3, "success, failed/locked, and review-pending DMs must all be server-tagged");
   assert.match(webhookSource, /embeds\.replies\.success\(guild\.name\)/);
   assert.match(webhookSource, /verificationLocked\(attempts/);
   assert.match(webhookSource, /verificationFailed\(/);

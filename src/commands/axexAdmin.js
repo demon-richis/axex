@@ -1,10 +1,12 @@
-const { MessageFlags } = require("discord.js");
+const { EmbedBuilder, MessageFlags } = require("discord.js");
 const {
   addAxexAdmin,
+  getGuildConfig,
   isAxexAdminsSchemaReady,
   listAxexAdmins,
   removeAxexAdmin,
 } = require("../db/client");
+const E = require("../verification/emojis");
 
 async function reply(interaction, content) {
   await interaction.reply({
@@ -12,6 +14,32 @@ async function reply(interaction, content) {
     flags: MessageFlags.Ephemeral,
     allowedMentions: { parse: [] },
   });
+}
+
+async function logAdminChange(guild, action, actorId, targetId) {
+  try {
+    if (!guild?.channels?.cache) return;
+    const config = await getGuildConfig(guild.id);
+    const channel = config?.log_channel_id
+      ? guild.channels.cache.get(config.log_channel_id)
+      : guild.channels.cache.find((candidate) => candidate.name === "axex-logs");
+    if (!channel?.isTextBased?.()) return;
+    await channel.send({
+      embeds: [
+        new EmbedBuilder().setDescription(
+          [
+            "__**Axex Administrator**__",
+            `> ${E.owner} **Action:** ${action}`,
+            `> ${E.user} **Actor ID:** ${actorId}`,
+            `> ${E.staff} **Target ID:** ${targetId}`,
+          ].join("\n"),
+        ),
+      ],
+      allowedMentions: { parse: [] },
+    });
+  } catch (error) {
+    console.error("[Axex Admin] Could not write administrator audit log:", error.message);
+  }
 }
 
 async function execute(interaction) {
@@ -45,8 +73,17 @@ async function execute(interaction) {
     }
 
     const user = interaction.options.getUser("user", true);
+    if (!/^\d{17,20}$/.test(String(user.id))) {
+      await reply(interaction, "Invalid User ID. Provide a numeric Discord snowflake.");
+      return;
+    }
+    if (user.bot) {
+      await reply(interaction, "Bots cannot be added as Axex administrators.");
+      return;
+    }
     if (action === "add") {
       const added = await addAxexAdmin(guild.id, user.id, interaction.user.id);
+      if (added) await logAdminChange(guild, "Added", interaction.user.id, user.id);
       await reply(
         interaction,
         added
@@ -56,7 +93,12 @@ async function execute(interaction) {
       return;
     }
     if (action === "remove") {
+      if (user.id === guild.ownerId) {
+        await reply(interaction, "The server owner cannot be removed as an Axex administrator.");
+        return;
+      }
       const removed = await removeAxexAdmin(guild.id, user.id);
+      if (removed) await logAdminChange(guild, "Removed", interaction.user.id, user.id);
       await reply(
         interaction,
         removed

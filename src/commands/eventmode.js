@@ -1,14 +1,15 @@
-const { MessageFlags, PermissionFlagsBits } = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const { getGuildState, logVerificationEvent, setGuildState } = require('../db/client');
 const embeds = require('../config/messages');
 const { sendLiveUpdate } = require('../utils/liveUpdate');
+const { isAxexAdmin } = require('../utils/axexAdmin');
 
 async function execute(interaction) {
   if (!interaction.guild) {
     await interaction.reply({ embeds: [embeds.eventMode.guildOnly()], flags: MessageFlags.Ephemeral });
     return;
   }
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  if (!(await isAxexAdmin(interaction.guild.id, interaction.user.id, interaction.guild.ownerId))) {
     await interaction.reply({ embeds: [embeds.eventMode.permissionDenied()], flags: MessageFlags.Ephemeral });
     return;
   }

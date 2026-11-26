@@ -1,8 +1,9 @@
-const { MessageFlags, PermissionFlagsBits } = require("discord.js");
+const { MessageFlags } = require("discord.js");
 const { getGuildConfig } = require("../db/client");
 const { autoSetup, SetupError } = require("../setup/autoSetup");
 const embeds = require("../config/messages");
 const axexAdmin = require("./axexAdmin");
+const { isAxexAdmin } = require("../utils/axexAdmin");
 
 async function repair(interaction) {
   if (!interaction.guild) {
@@ -12,7 +13,7 @@ async function repair(interaction) {
     });
     return;
   }
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  if (!(await isAxexAdmin(interaction.guild.id, interaction.user.id, interaction.guild.ownerId))) {
     await interaction.reply({
       embeds: [embeds.setup.permissionDenied()],
       flags: MessageFlags.Ephemeral,
@@ -77,6 +78,13 @@ async function execute(interaction) {
   }
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === "settings") {
+    if (!(await isAxexAdmin(interaction.guild.id, interaction.user.id, interaction.guild.ownerId))) {
+      await interaction.reply({
+        embeds: [embeds.setup.permissionDenied()],
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const config = await getGuildConfig(interaction.guild.id);
     if (!config?.setup_done) {

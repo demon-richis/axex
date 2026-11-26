@@ -34,7 +34,8 @@ function makeInteraction(overrides = {}) {
   const interaction = {
     customId: "vlog:12345678",
     values: ["details"],
-    guild: { id: "guild-1" },
+    guild: { id: "guild-1", ownerId: "123456789012345678" },
+    user: { id: "123456789012345678" },
     guildId: "guild-1",
     memberPermissions: { has: (permission) => permission === PermissionFlagsBits.ManageGuild },
     isStringSelectMenu: () => true,
@@ -72,6 +73,8 @@ test("select handler rejects interactions outside a guild", async () => {
 test("select handler rejects members without Manage Server", async () => {
   const { interaction, replies } = makeInteraction({
     memberPermissions: { has: () => false },
+    guild: { id: "guild-1", ownerId: "123456789012345678" },
+    user: { id: "123456789012345677" },
   });
 
   await execute(interaction);

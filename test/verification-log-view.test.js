@@ -31,6 +31,8 @@ function makeInteraction({ reference = null, user = null, format = "embed", acti
   const replies = [];
   const interaction = {
     guildId: "guild-1",
+    guild: { id: "guild-1", ownerId: "123456789012345678" },
+    user: { id: "123456789012345678" },
     memberPermissions: { has: (permission) => permission === PermissionFlagsBits.ManageGuild },
     options: {
       getString(name) { return name === "reference" ? reference : name === "action" ? action : name === "format" ? format : null; },

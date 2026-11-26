@@ -1,7 +1,8 @@
-const { MessageFlags, PermissionFlagsBits } = require("discord.js");
+const { MessageFlags } = require("discord.js");
 const { randomUUID } = require("node:crypto");
 const { saveMemberRoleIds } = require("../db/client");
 const embeds = require("../config/messages");
+const { isAxexAdmin } = require("../utils/axexAdmin");
 const {
   autoSetup,
   inspectResources,
@@ -125,7 +126,7 @@ async function execute(interaction) {
     });
     return;
   }
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  if (!(await isAxexAdmin(interaction.guild.id, interaction.user.id, interaction.guild.ownerId))) {
     await interaction.reply({
       embeds: [embeds.setup.permissionDenied()],
       flags: MessageFlags.Ephemeral,
@@ -140,10 +141,25 @@ async function execute(interaction) {
   const raidTiming = interaction.options.getInteger("raid-timing") ?? 2500;
   const honeypot = interaction.options.getBoolean("honeypot") ?? true;
   const vpnCheck = interaction.options.getBoolean("vpn-check") ?? true;
+  const memberTimeoutMinutes =
+    interaction.options.getInteger("member-timeout-minutes") ?? 0;
+  const timeoutReminderMinutes =
+    interaction.options.getInteger("timeout-reminder-minutes") ?? 30;
   const newAccountAction =
     interaction.options.getString("new-account-action") ?? "warn";
   const suspiciousAction =
     interaction.options.getString("suspicious-action") ?? "flag";
+
+  if (
+    memberTimeoutMinutes > 0 &&
+    timeoutReminderMinutes >= memberTimeoutMinutes
+  ) {
+    await interaction.reply({
+      content: "The reminder must be sent before the member timeout.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
 
   const settings = {
     minAge,
@@ -152,6 +168,8 @@ async function execute(interaction) {
     raidTiming,
     honeypot,
     vpnCheck,
+    memberTimeoutMinutes,
+    timeoutReminderMinutes,
     newAccountAction,
     suspiciousAction,
   };

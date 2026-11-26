@@ -29,4 +29,35 @@ X0.2a | commit b74b8f5ece6013ae769a635aa5ccbd64cee06406 | demon-richis/axex | sr
 B5a | commit 4440ec6d246a3c4be779f21a5341c33b95540d59 | demon-richis/axex | src/db/migrations/20261123_axex_admins.sql, src/db/client.js, test/axex-admin-schema.test.js, test/botdb-pglite.test.js | tests: admin-table migration/idempotency and missing-schema startup warning | result: added the migration-first, guild-scoped Axex admin schema; passed and pushed
 B5b | commit 757ae54298fc1db6d39baf9e9010b86962ed162a | demon-richis/axex | src/utils/axexAdmin.js, src/commands/axexAdmin.js, src/commands/axex.js, src/commands/quarantine.js, src/interactions/buttonHandler.js, src/deploy-commands.js | tests: Axex admin authorization, owner-only admin commands, review/quarantine authorization regressions; full suite 185/185 and syntax checks | result: owner-managed guild-scoped admins now gate quarantine and bot-review actions; passed and pushed
 L2 | commit 1dc9fd9d48122296fbd2f24d7578d3a526e6e025 | demon-richis/axex-account-intelligence | src/analyzers/profileAnalyzer.js, test/core.test.js | tests: 24/24, npm run check | result: profile richness reduces risk by at most 10 points and only decoration sets the preliminary autoCandidate; passed and pushed
-L1 | commit pending | demon-richis/axex | src/utils/verificationSignals.js, src/utils/intelligenceClient.js, src/verification/verifySystem.js, test/verification-signals.test.js, test/verification-token-signals.test.js | tests: join-time classification and token payload; full suite 191/191, npm run check | result: bot now computes and sends verification level, profile signals, risk signals, and decoration-only autoCandidate; passed, push pending
+83aa066 | commit 83aa066 | demon-richis/axex | src/utils/verificationSignals.js, src/utils/intelligenceClient.js, src/verification/verifySystem.js, test/verification-signals.test.js, test/verification-token-signals.test.js | bot tests 201/201, npm run check | result: bot sends join-time verification levels and trusted account/risk signals; passed and pushed
+B5c | commit pending | demon-richis/axex | src/commands/axexAdmin.js, src/utils/axexAdmin.js, src/commands/axex.js, src/commands/eventmode.js, src/commands/vsetup.js, src/commands/verificationLog.js, src/interactions/modalHandler.js, src/interactions/logSelectHandler.js | bot tests 201/201, npm run check | result: guild-scoped owner-only Axex admin management, numeric snowflake and bot guards, Axex log entries, and shared bot-side authorizer coverage; passed
+L3 | commit pending | demon-richis/axex and demon-richis/axex-guardian-portal | verification level pipeline, portal submit/challenge paths, test/verification-level.test.mjs | bot 201/201, portal 104/104, portal check/build | result: verified Critical/High/Medium/Low/Auto behavior matrix and end-to-end level handling; passed
+O1a | commit pending | demon-richis/axex-orbit | public/frame.js, test/widget.test.js, test/orbit.test.js, package.json | Orbit tests 41/41, testA11y 1/1, npm run check | result: widget test harness and syntax lint fixed; approved widget behavior retained; passed
+O1b/O1c | commit pending | demon-richis/axex-guardian-portal | src/lib/orbit.server.ts, src/routes/api/challenge.ts, src/routes/api/orbit.session.ts, src/lib/verification-submit.server.ts, .env.example, README.md | portal 104/104, npm run check, production build | result: server-side Orbit integration, High-only provider routing, fallback/fail policies, replay protection, logs, and Vercel documentation; passed
+Q1a | commit pending | demon-richis/axex-guardian-portal | repository formatting | portal npm run format | result: formatting-only pass completed
+Q1b | commit pending | demon-richis/axex-guardian-portal | src/lib/discord-identity.server.ts, src/routes/index.tsx, src/lib/verification-submit.server.ts | portal 104/104, npm run check, production build | result: lint/TypeScript debt resolved for the two recorded TS3 and 39 formatting/lint failures
+L2 | commit 1dc9fd9d48122296fbd2f24d7578d3a526e6e025 | demon-richis/axex-account-intelligence | src/analyzers/profileAnalyzer.js, test/core.test.js | intelligence 24/24, npm run check | result: profile richness capped at 10 risk points and decoration-only autoCandidate; passed
+L3 | commit pending | demon-richis/axex-account-intelligence | src/analyzers/behaviorTracker.js | intelligence 24/24, npm run check | result: fixed behavior average floating-point representation; passed
+S1 | commit pending | all four repos | package manifests/locks and dependency files | production npm audit, secret scans | result: bot/intelligence/Orbit 0 production findings; portal residual nested Zod advisories require follow-up, exact pins recorded
+
+## Baseline P0
+
+- Axex: 201/201 tests pass, npm run check passes. Baseline P0 before fixes had 200/201 due to the test expectation counting review-pending DM tags; fixed and recorded.
+- Portal: 104/104 tests pass, npm run check passes, production build passes. Baseline P0 had 101/104 with 3 failures, and 39 lint errors; all resolved.
+- Intelligence: 24/24 tests pass, npm run check passes. Baseline P0 had 23/24 due to a 499.99999999999994 floating-point assertion; fixed.
+- Orbit: 41/41 tests pass, testA11y 1/1 passes, npm run check passes. Baseline P0 had 36/41 and a Windows glob lint failure; fixed.
+
+## Assumptions
+
+- Orbit disabled remains safe: High verification falls back to Turnstile and is flagged rather than silently passing.
+- Missing Orbit configuration with ORBIT_ENABLED=true fails closed for High verification.
+- Axex admin owner and user identifiers are Discord numeric snowflakes; guild owner bypasses stored migration absence.
+- Network failure behavior follows each stored verification policy networkFailMode.
+
+## Known remaining items
+
+- Apply portal/Neon migrations 0000-0012 in numeric order before enabling policy or Orbit traffic.
+- Set and redeploy Vercel Orbit environment variables.
+- Deploy slash commands after pushing bot changes.
+- Review the portal audit output for nested @vercel/cli-config Zod advisories; exact patched release set is recorded, but npm audit still reports 4 high nested findings pending upstream dependency updates.
+- Dashboard, landing page, global reputation, raid mode, manual review/appeal UI remain intentionally out of scope.
